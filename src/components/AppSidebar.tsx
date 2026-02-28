@@ -8,9 +8,9 @@ import {
   MapPin,
   Settings,
   Accessibility,
-  Heart,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -24,10 +24,18 @@ const navItems = [
 
 const AppSidebar = () => {
   const location = useLocation();
+  const { profile } = useAuth();
+
+  const completion = (() => {
+    if (!profile) return 0;
+    let filled = 0;
+    const fields = ["full_name", "disability_type", "education_level", "skills", "city"];
+    fields.forEach(f => { if (profile[f] && (Array.isArray(profile[f]) ? profile[f].length > 0 : true)) filled++; });
+    return Math.round((filled / fields.length) * 100);
+  })();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-sidebar-bg text-sidebar-fg">
-      {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-active">
           <Accessibility className="h-6 w-6 text-sidebar-active-fg" />
@@ -38,7 +46,6 @@ const AppSidebar = () => {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="mt-4 flex-1 space-y-1 px-3">
         {navItems.map((item) => {
           const isActive = location.pathname === item.to;
@@ -59,13 +66,12 @@ const AppSidebar = () => {
         })}
       </nav>
 
-      {/* Profile Completion */}
       <div className="mx-4 mb-6 rounded-lg bg-sidebar-hover p-4">
         <div className="flex items-center justify-between text-xs text-sidebar-fg mb-2">
           <span>Profile Completion</span>
-          <span className="font-semibold text-sidebar-active-fg">85%</span>
+          <span className="font-semibold text-sidebar-active-fg">{completion}%</span>
         </div>
-        <Progress value={85} className="h-2 bg-sidebar-muted" />
+        <Progress value={completion} className="h-2 bg-sidebar-muted" />
       </div>
     </aside>
   );
