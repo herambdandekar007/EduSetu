@@ -62,6 +62,86 @@ export type Database = {
         }
         Relationships: []
       }
+      forum_posts: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          is_pinned: boolean | null
+          likes_count: number | null
+          replies_count: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean | null
+          likes_count?: number | null
+          replies_count?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean | null
+          likes_count?: number | null
+          replies_count?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      forum_replies: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          likes_count: number | null
+          post_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          likes_count?: number | null
+          post_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          likes_count?: number | null
+          post_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forum_replies_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "forum_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           accessibility_tags: string[] | null
@@ -103,6 +183,95 @@ export type Database = {
           title?: string
         }
         Relationships: []
+      }
+      mentor_profiles: {
+        Row: {
+          availability: string | null
+          avatar_url: string | null
+          bio: string | null
+          company: string | null
+          created_at: string
+          expertise: string[] | null
+          id: string
+          is_active: boolean | null
+          name: string
+          rating: number | null
+          role: string | null
+          sessions_count: number | null
+          user_id: string
+        }
+        Insert: {
+          availability?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          company?: string | null
+          created_at?: string
+          expertise?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          rating?: number | null
+          role?: string | null
+          sessions_count?: number | null
+          user_id: string
+        }
+        Update: {
+          availability?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          company?: string | null
+          created_at?: string
+          expertise?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          rating?: number | null
+          role?: string | null
+          sessions_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mentor_requests: {
+        Row: {
+          career_goal: string | null
+          created_at: string
+          id: string
+          mentee_id: string
+          mentor_id: string
+          message: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          career_goal?: string | null
+          created_at?: string
+          id?: string
+          mentee_id: string
+          mentor_id: string
+          message?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          career_goal?: string | null
+          created_at?: string
+          id?: string
+          mentee_id?: string
+          mentor_id?: string
+          message?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentor_requests_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentor_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -268,6 +437,72 @@ export type Database = {
           max_income?: number | null
           ministry?: string | null
           name?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_name: string
+          achievement_type: string
+          description: string | null
+          earned_at: string
+          icon: string | null
+          id: string
+          points: number | null
+          user_id: string
+        }
+        Insert: {
+          achievement_name: string
+          achievement_type: string
+          description?: string | null
+          earned_at?: string
+          icon?: string | null
+          id?: string
+          points?: number | null
+          user_id: string
+        }
+        Update: {
+          achievement_name?: string
+          achievement_type?: string
+          description?: string | null
+          earned_at?: string
+          icon?: string | null
+          id?: string
+          points?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_points: {
+        Row: {
+          created_at: string
+          id: string
+          last_activity: string | null
+          level: number | null
+          streak_days: number | null
+          total_points: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_activity?: string | null
+          level?: number | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_activity?: string | null
+          level?: number | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
