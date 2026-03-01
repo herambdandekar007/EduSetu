@@ -14,6 +14,10 @@ import SchemesPage from "./pages/SchemesPage";
 import EducationPage from "./pages/EducationPage";
 import NearbyPage from "./pages/NearbyPage";
 import SettingsPage from "./pages/SettingsPage";
+import CommunityPage from "./pages/CommunityPage";
+import MentorsPage from "./pages/MentorsPage";
+import GamificationPage from "./pages/GamificationPage";
+import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +37,10 @@ const App = () => (
             <Route path="/schemes" element={<ProtectedRoute><SchemesPage /></ProtectedRoute>} />
             <Route path="/education" element={<ProtectedRoute><EducationPage /></ProtectedRoute>} />
             <Route path="/nearby" element={<ProtectedRoute><NearbyPage /></ProtectedRoute>} />
+            <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+            <Route path="/mentors" element={<ProtectedRoute><MentorsPage /></ProtectedRoute>} />
+            <Route path="/achievements" element={<ProtectedRoute><GamificationPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
