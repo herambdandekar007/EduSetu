@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Briefcase, MapPin, Bookmark, Share2, ExternalLink, Search, Filter } from "lucide-react";
+import { Briefcase, MapPin, Bookmark, Share2, Search, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -10,10 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
+
+interface AIMatch {
+  jobId: string;
+  score: number;
+  reasons: string[];
+  missingSkills: string[];
+}
+
 const JobsPage = () => {
   const [jobs, setJobs] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [aiMatches, setAiMatches] = useState<Record<string, AIMatch>>({});
+  const [aiLoading, setAiLoading] = useState(false);
   const { profile } = useAuth();
 
   useEffect(() => {
@@ -25,7 +36,69 @@ const JobsPage = () => {
     fetchJobs();
   }, []);
 
-  const calculateMatch = (job: any) => {
+  useEffect(() => {
+    if (jobs.length && profile?.skills?.length && !Object.keys(aiMatches).length) {
+      runAIMatching();
+    }
+  }, [jobs, profile]);
+
+  const runAIMatching = async () => {
+    if (!profile || !jobs.length) return;
+    setAiLoading(true);
+    try {
+      const jobSummaries = jobs.map(j => ({ id: j.id, title: j.title, company: j.company, skills_required: j.skills_required, accessibility_tags: j.accessibility_tags, location: j.location }));
+
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          type: "job-match",
+          messages: [{ role: "user", content: `Score these jobs for me:\n${JSON.stringify(jobSummaries)}` }],
+          userProfile: profile,
+        }),
+      });
+
+      if (resp.status === 429) { toast.error("Rate limited."); setAiLoading(false); return; }
+      if (resp.status === 402) { toast.error("AI credits exhausted."); setAiLoading(false); return; }
+      if (!resp.ok) throw new Error("AI error");
+
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let full = "", textBuffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, idx);
+          textBuffer = textBuffer.slice(idx + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (!line.startsWith("data: ")) continue;
+          const json = line.slice(6).trim();
+          if (json === "[DONE]") break;
+          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) full += c; } catch { textBuffer = line + "\n" + textBuffer; break; }
+        }
+      }
+
+      const parsed = JSON.parse(full);
+      const matchMap: Record<string, AIMatch> = {};
+      (parsed.matches || []).forEach((m: AIMatch) => { matchMap[m.jobId] = m; });
+      setAiMatches(matchMap);
+      toast.success("AI job matching complete!");
+    } catch (e) {
+      console.error(e);
+      // Fallback to basic matching
+    }
+    setAiLoading(false);
+  };
+
+  const getMatchScore = (job: any) => {
+    if (aiMatches[job.id]) return aiMatches[job.id].score;
+    // Fallback basic matching
     if (!profile?.skills?.length || !job.skills_required?.length) return 0;
     const userSkills = (profile.skills as string[]).map((s: string) => s.toLowerCase());
     const required = (job.skills_required as string[]).map((s: string) => s.toLowerCase());
@@ -33,19 +106,31 @@ const JobsPage = () => {
     return Math.round((matched.length / required.length) * 100);
   };
 
-  const filtered = jobs.filter(j =>
-    j.title.toLowerCase().includes(search.toLowerCase()) ||
-    j.company.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = jobs
+    .filter(j => j.title.toLowerCase().includes(search.toLowerCase()) || j.company.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => getMatchScore(b) - getMatchScore(a));
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Job Matches</h1>
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search jobs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground">Job Matches</h1>
+            {aiLoading && <Loader2 className="h-4 w-4 animate-spin text-accent" />}
+            {Object.keys(aiMatches).length > 0 && (
+              <Badge className="bg-accent/10 text-accent border-accent/20 text-xs">
+                <Sparkles className="h-3 w-3 mr-1" /> AI Scored
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search jobs..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+            </div>
+            <Button onClick={runAIMatching} disabled={aiLoading} variant="outline" size="sm" className="gap-1">
+              <Sparkles className="h-4 w-4" /> Re-score
+            </Button>
           </div>
         </div>
 
@@ -54,7 +139,8 @@ const JobsPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.map((job, i) => {
-              const match = calculateMatch(job);
+              const match = getMatchScore(job);
+              const aiMatch = aiMatches[job.id];
               return (
                 <motion.div key={job.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <Card className="border border-border hover:shadow-lg transition-shadow">
@@ -64,7 +150,10 @@ const JobsPage = () => {
                           <Briefcase className="h-5 w-5" />
                         </div>
                         {match > 0 && (
-                          <Badge className="bg-match/10 text-match border-match/20">{match}% MATCH</Badge>
+                          <Badge className={`${match >= 80 ? "bg-success/10 text-success border-success/20" : match >= 50 ? "bg-match/10 text-match border-match/20" : "bg-muted text-muted-foreground"}`}>
+                            {aiMatch && <Sparkles className="h-3 w-3 mr-1 inline" />}
+                            {match}% MATCH
+                          </Badge>
                         )}
                       </div>
                       <h3 className="text-base font-bold text-foreground">{job.title}</h3>
@@ -72,6 +161,14 @@ const JobsPage = () => {
                         {job.company} • <MapPin className="h-3 w-3" /> {job.location}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">{job.job_type} • {job.salary_range}</p>
+
+                      {aiMatch?.reasons?.length > 0 && (
+                        <p className="text-xs text-accent mt-2 italic">AI: {aiMatch.reasons[0]}</p>
+                      )}
+                      {aiMatch?.missingSkills?.length > 0 && (
+                        <p className="text-xs text-warning mt-1">Missing: {aiMatch.missingSkills.join(", ")}</p>
+                      )}
+
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {job.skills_required?.map((s: string) => (
                           <span key={s} className="text-xs bg-accent/5 text-accent px-2 py-0.5 rounded font-medium">{s}</span>
