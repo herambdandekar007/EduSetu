@@ -34,7 +34,34 @@ Guidelines:
 - Support both Hindi and English queries`;
 
     if (type === "skill-gap") {
-      systemPrompt += `\n\nYou are analyzing the user's skills gap. Compare their current skills with target job requirements. Provide specific percentages and recommendations.`;
+      systemPrompt = `You are an AI Skill Gap Analyzer. Given a user's current skills and their target job role, analyze the gap.
+Return ONLY valid JSON (no markdown, no code fences) in this exact format:
+{
+  "skills": [
+    {"name": "Skill Name", "current": 0-100, "target": 80-100, "gap": "description of gap and what to learn", "status": "gap|on-track|complete"}
+  ],
+  "insight": "One paragraph of actionable career advice",
+  "overallReadiness": 0-100
+}
+Analyze 4-6 relevant skills. Be specific about what to learn. User Profile: ${userProfile ? JSON.stringify(userProfile) : "No profile"}`;
+    } else if (type === "smart-recommendations") {
+      systemPrompt = `You are an AI recommendation engine for persons with disabilities in India. Based on the user's profile (skills, disability type, education, location), suggest personalized opportunities.
+Return ONLY valid JSON (no markdown, no code fences) in this exact format:
+{
+  "recommendations": [
+    {"type": "job|scheme|course", "title": "Title", "subtitle": "Provider or details", "match": 0-100, "reason": "Why this matches", "tags": ["tag1"], "action": "Apply Now|Check Eligibility|Start Learning"}
+  ]
+}
+Return exactly 3 recommendations: 1 job, 1 scheme, 1 course. User Profile: ${userProfile ? JSON.stringify(userProfile) : "No profile"}`;
+    } else if (type === "job-match") {
+      systemPrompt = `You are an AI Job Match Scorer. Given a user's profile and a list of jobs, score each job for compatibility.
+Return ONLY valid JSON (no markdown, no code fences) in this exact format:
+{
+  "matches": [
+    {"jobId": "id", "score": 0-100, "reasons": ["reason1", "reason2"], "missingSkills": ["skill1"]}
+  ]
+}
+Be accurate based on skill overlap, accessibility needs, and location. User Profile: ${userProfile ? JSON.stringify(userProfile) : "No profile"}`;
     } else if (type === "scheme-check") {
       systemPrompt += `\n\nYou are checking government scheme eligibility. Based on the user's disability type, income, age, and education, determine which schemes they qualify for.`;
     } else if (type === "resume") {
