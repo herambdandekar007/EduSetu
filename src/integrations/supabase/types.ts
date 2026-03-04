@@ -306,60 +306,111 @@ export type Database = {
       profiles: {
         Row: {
           age: number | null
+          assistive_tech: string | null
           avatar_url: string | null
+          bio: string | null
           city: string | null
           created_at: string
+          date_of_birth: string | null
           disability_certificate_url: string | null
           disability_percentage: number | null
           disability_type: string | null
           education_level: string | null
           email: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string
+          gender: string | null
+          guardian_name: string | null
+          guardian_phone: string | null
           id: string
           income: number | null
+          languages: string[] | null
+          linkedin_url: string | null
+          marital_status: string | null
+          phone: string | null
+          pincode: string | null
+          preferred_job_type: string | null
+          preferred_locations: string[] | null
           resume_url: string | null
           skills: string[] | null
           state: string | null
+          udid_number: string | null
           updated_at: string
           user_id: string
+          work_experience_years: number | null
         }
         Insert: {
           age?: number | null
+          assistive_tech?: string | null
           avatar_url?: string | null
+          bio?: string | null
           city?: string | null
           created_at?: string
+          date_of_birth?: string | null
           disability_certificate_url?: string | null
           disability_percentage?: number | null
           disability_type?: string | null
           education_level?: string | null
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
+          gender?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
           id?: string
           income?: number | null
+          languages?: string[] | null
+          linkedin_url?: string | null
+          marital_status?: string | null
+          phone?: string | null
+          pincode?: string | null
+          preferred_job_type?: string | null
+          preferred_locations?: string[] | null
           resume_url?: string | null
           skills?: string[] | null
           state?: string | null
+          udid_number?: string | null
           updated_at?: string
           user_id: string
+          work_experience_years?: number | null
         }
         Update: {
           age?: number | null
+          assistive_tech?: string | null
           avatar_url?: string | null
+          bio?: string | null
           city?: string | null
           created_at?: string
+          date_of_birth?: string | null
           disability_certificate_url?: string | null
           disability_percentage?: number | null
           disability_type?: string | null
           education_level?: string | null
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
+          gender?: string | null
+          guardian_name?: string | null
+          guardian_phone?: string | null
           id?: string
           income?: number | null
+          languages?: string[] | null
+          linkedin_url?: string | null
+          marital_status?: string | null
+          phone?: string | null
+          pincode?: string | null
+          preferred_job_type?: string | null
+          preferred_locations?: string[] | null
           resume_url?: string | null
           skills?: string[] | null
           state?: string | null
+          udid_number?: string | null
           updated_at?: string
           user_id?: string
+          work_experience_years?: number | null
         }
         Relationships: []
       }
