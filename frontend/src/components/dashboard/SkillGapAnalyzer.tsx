@@ -83,7 +83,14 @@ const SkillGapAnalyzer = () => {
         }
       }
 
-      const parsed = JSON.parse(full) as AnalysisResult;
+      let cleaned = full.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        cleaned = cleaned.slice(start, end + 1);
+      }
+
+      const parsed = JSON.parse(cleaned) as AnalysisResult;
       setResult(parsed);
       toast.success("Skill gap analysis complete!");
     } catch (e: any) {

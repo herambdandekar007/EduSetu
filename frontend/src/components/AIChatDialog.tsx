@@ -12,7 +12,7 @@ const CHAT_URL = import.meta.env.VITE_AI_ASSISTANT_URL;
 const AIChatDialog = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hello! I'm your DivyangConnectAI AI Assistant. I can help you find jobs, check scheme eligibility, suggest courses, and provide career guidance. How can I help you today?" }
+    { role: "assistant", content: "Hello! I'm your SMART EDUCATION AI Assistant. I can help you find courses, check academic growth, track skills, practice speech drills, and provide career guidance. How can I help you today?" }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

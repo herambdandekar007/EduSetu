@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, User, Briefcase, FileCheck, GraduationCap, MapPin,
-  Settings, Accessibility, Users, Trophy, UserCheck, Shield,
+  LayoutDashboard, User, Briefcase, FileCheck, GraduationCap, BookOpen, MapPin,
+  Settings, Accessibility, Users, Trophy, UserCheck, Shield, FolderLock, Bot, Map, Mic,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -11,10 +11,15 @@ const navItems = [
   { to: "/jobs", icon: Briefcase, label: "Job Matches" },
   { to: "/schemes", icon: FileCheck, label: "Scheme Eligibility" },
   { to: "/education", icon: GraduationCap, label: "Education" },
+  { to: "/learn", icon: BookOpen, label: "Learn" },
+  { to: "/edumentor", icon: Bot, label: "EduMentor" },
+  { to: "/eduroadmap", icon: Map, label: "EduRoadmap" },
+  { to: "/eduspeak", icon: Mic, label: "EduSpeak" },
+  { to: "/eduvault", icon: FolderLock, label: "EduVault" },
   { to: "/nearby", icon: MapPin, label: "Nearby Services" },
   { to: "/community", icon: Users, label: "Community" },
   { to: "/mentors", icon: UserCheck, label: "Mentors" },
-  { to: "/achievements", icon: Trophy, label: "Achievements" },
+  { to: "/performance", icon: Trophy, label: "Performance & Growth" },
   { to: "/accessibility", icon: Accessibility, label: "Accessibility" },
   { to: "/admin", icon: Shield, label: "Admin Panel" },
   { to: "/settings", icon: Settings, label: "Settings" },
@@ -55,12 +60,12 @@ const AppSidebar = () => {
           className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl shadow-lg"
           style={{ background: "linear-gradient(135deg, hsl(265,80%,62%), hsl(250,84%,54%))" }}
         >
-          <Accessibility className="h-5 w-5 text-white drop-shadow" />
+          <GraduationCap className="h-5 w-5 text-white drop-shadow" />
         </div>
         <div>
-          <h1 className="text-[15px] font-extrabold text-white leading-tight">DivyangConnectAI</h1>
+          <h1 className="text-[15px] font-extrabold text-white leading-tight">SMART EDUCATION AI</h1>
           <p className="text-[10px] uppercase tracking-widest" style={{ color: "hsl(265,55%,68%)" }}>
-            Empowering Ability
+            Adaptive Learning Protocol
           </p>
         </div>
       </div>

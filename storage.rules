@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // EduVault user document files: eduVault/{userId}/{documentId}/{fileName}
+    match /eduVault/{userId}/{documentId}/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId
+                    && request.resource.size < 50 * 1024 * 1024; // 50MB max limit
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Public/general assets
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+}

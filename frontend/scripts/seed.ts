@@ -3,6 +3,11 @@ import "dotenv/config";
 //import { seedSchemes } from "../src/firebase/collections/schemes.ts";
 //import { seedCourses } from "../src/firebase/collections/courses.ts";
 import { createProfile } from "../src/firebase/collections/profiles.ts";
+import { seedLearnData } from "../src/firebase/collections/learn.ts";
+
+// Seeding target: pass a userId as CLI arg or defaults to the test user.
+const SEED_USER_ID = process.argv[2] || "test-user-123";
+
 const seedAll = async () => {
   console.log("🚀 Starting Firestore seeding...");
 
@@ -14,13 +19,15 @@ const seedAll = async () => {
 
   //console.log("\n📌 Seeding Courses...");
   //await seedCourses();
-console.log("\n📌 Creating Test Profile...");
+console.log(`\n📌 Creating Test Profile (${SEED_USER_ID})...`);
 
   await createProfile(
-    "test-user-123",
+    SEED_USER_ID,
     "testuser@gmail.com",
     "Test User"
   );
+
+  await seedLearnData(SEED_USER_ID);
 
   console.log("\n✅ Profile created successfully!");
 };

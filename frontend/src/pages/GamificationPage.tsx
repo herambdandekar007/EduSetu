@@ -6,7 +6,7 @@ import { db } from "@/integrations/firebase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
@@ -30,6 +30,25 @@ const BADGE_DEFINITIONS = [
   { type: "streak_30", name: "Monthly Master", desc: "30-day activity streak", icon: "crown", points: 200, color: "text-warning" },
 ];
 
+type UserPoints = {
+  total_points: number;
+  level: number;
+  streak_days: number;
+  user_id?: string;
+};
+
+type Achievement = {
+  id: string;
+  achievement_type: string;
+};
+
+type LeaderboardEntry = {
+  id: string;
+  user_id?: string;
+  total_points: number;
+  level: number;
+};
+
 const iconMap: Record<string, any> = {
   user: Target, briefcase: Briefcase, file: Award, book: BookOpen,
   sparkles: Star, message: Users, users: Users, flame: Flame, crown: Crown,
@@ -37,37 +56,78 @@ const iconMap: Record<string, any> = {
 
 const GamificationPage = () => {
   const { user } = useAuth();
-  const [points, setPoints] = useState({ total_points: 0, level: 1, streak_days: 0 });
-  const [achievements, setAchievements] = useState<any[]>([]);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [points, setPoints] = useState<UserPoints>({ total_points: 0, level: 1, streak_days: 0 });
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
+    if (!user?.uid) return;
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   const fetchData = async () => {
-    // User points and achievements are stored with the user UID as the document ID
-    const [pointsSnap, achSnap, leaderSnap] = await Promise.all([
-      getDoc(doc(db, "user_points", user!.uid)),
-      getDocs(query(collection(db, "user_achievements"), where("user_id", "==", user!.uid))),
-      getDocs(query(collection(db, "user_points"), orderBy("total_points", "desc"), limit(10))),
-    ]);
-    if (pointsSnap.exists()) setPoints(pointsSnap.data() as any);
-    setAchievements(achSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setLeaderboard(leaderSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    if (!user?.uid) return;
+    setLoading(true);
+    setError("");
+
+    try {
+      const [pointsSnap, achSnap, leaderSnap] = await Promise.all([
+        getDoc(doc(db, "user_points", user.uid)),
+        getDocs(query(collection(db, "user_achievements"), where("user_id", "==", user.uid))),
+        getDocs(query(collection(db, "user_points"), orderBy("total_points", "desc"), limit(10))),
+      ]);
+
+      if (pointsSnap.exists()) {
+        const p = pointsSnap.data() as Partial<UserPoints>;
+        setPoints({
+          total_points: Number(p.total_points ?? 0),
+          level: Number(p.level ?? 1),
+          streak_days: Number(p.streak_days ?? 0),
+          user_id: p.user_id,
+        });
+      } else {
+        setPoints({ total_points: 0, level: 1, streak_days: 0 });
+      }
+
+      setAchievements(
+        achSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Achievement, "id">) }))
+      );
+
+      setLeaderboard(
+        leaderSnap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<LeaderboardEntry, "id">),
+        }))
+      );
+    } catch (e) {
+      console.error(e);
+      setError("Failed to load gamification data.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const currentLevel = Math.min(
     LEVEL_THRESHOLDS.findIndex((t, i) => i === LEVEL_THRESHOLDS.length - 1 || points.total_points < LEVEL_THRESHOLDS[i + 1]),
     LEVEL_NAMES.length - 1
   );
+
+  const isMaxLevel = currentLevel >= LEVEL_THRESHOLDS.length - 1;
   const nextThreshold = LEVEL_THRESHOLDS[Math.min(currentLevel + 1, LEVEL_THRESHOLDS.length - 1)];
   const prevThreshold = LEVEL_THRESHOLDS[currentLevel];
-  const levelProgress = nextThreshold > prevThreshold
-    ? Math.round(((points.total_points - prevThreshold) / (nextThreshold - prevThreshold)) * 100)
-    : 100;
 
-  const earnedTypes = new Set(achievements.map(a => a.achievement_type));
+  const levelProgress = isMaxLevel
+    ? 100
+    : nextThreshold > prevThreshold
+      ? Math.max(0, Math.min(100, Math.round(((points.total_points - prevThreshold) / (nextThreshold - prevThreshold)) * 100)))
+      : 100;
+
+  const xpToNext = isMaxLevel ? 0 : Math.max(0, nextThreshold - points.total_points);
+
+  const earnedTypes = new Set(achievements.map((a) => a.achievement_type));
 
   return (
     <DashboardLayout>
@@ -86,13 +146,19 @@ const GamificationPage = () => {
           </div>
         </PageHeader>
 
+        {error && (
+          <Card className="border-destructive/40">
+            <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+          </Card>
+        )}
+
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
             <Card className="border border-border bg-gradient-to-br from-accent/5 to-transparent">
               <CardContent className="p-5 text-center">
                 <Zap className="h-8 w-8 text-accent mx-auto mb-2" />
-                <p className="text-3xl font-bold text-foreground">{points.total_points}</p>
+                <p className="text-3xl font-bold text-foreground">{loading ? "..." : points.total_points}</p>
                 <p className="text-sm text-muted-foreground">Total Points</p>
               </CardContent>
             </Card>
@@ -110,7 +176,7 @@ const GamificationPage = () => {
             <Card className="border border-border bg-gradient-to-br from-destructive/5 to-transparent">
               <CardContent className="p-5 text-center">
                 <Flame className="h-8 w-8 text-destructive mx-auto mb-2" />
-                <p className="text-3xl font-bold text-foreground">{points.streak_days}</p>
+                <p className="text-3xl font-bold text-foreground">{loading ? "..." : points.streak_days}</p>
                 <p className="text-sm text-muted-foreground">Day Streak</p>
               </CardContent>
             </Card>
@@ -122,11 +188,15 @@ const GamificationPage = () => {
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-foreground">Level {currentLevel + 1}: {LEVEL_NAMES[currentLevel]}</span>
-              <span className="text-sm text-muted-foreground">{points.total_points}/{nextThreshold} XP</span>
+              <span className="text-sm text-muted-foreground">
+                {points.total_points}/{isMaxLevel ? points.total_points : nextThreshold} XP
+              </span>
             </div>
             <Progress value={levelProgress} className="h-3 [&>div]:bg-accent" />
             <p className="text-xs text-muted-foreground mt-1">
-              {nextThreshold - points.total_points} XP to next level: {LEVEL_NAMES[Math.min(currentLevel + 1, LEVEL_NAMES.length - 1)]}
+              {isMaxLevel
+                ? "Max level reached."
+                : `${xpToNext} XP to next level: ${LEVEL_NAMES[Math.min(currentLevel + 1, LEVEL_NAMES.length - 1)]}`}
             </p>
           </CardContent>
         </Card>
@@ -170,20 +240,23 @@ const GamificationPage = () => {
                 {leaderboard.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">No activity yet. Start earning points!</p>
                 ) : (
-                  leaderboard.map((entry, i) => (
-                    <div key={entry.id} className={`flex items-center gap-3 p-2 rounded-lg ${entry.user_id === user?.id ? "bg-accent/5" : ""}`}>
-                      <span className={`text-lg font-bold w-6 text-center ${i < 3 ? "text-warning" : "text-muted-foreground"}`}>
-                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {entry.user_id === user?.id ? "You" : `User ${i + 1}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Level {entry.level}</p>
+                  leaderboard.map((entry, i) => {
+                    const isCurrentUser = !!user?.uid && (entry.user_id === user.uid || entry.id === user.uid);
+                    return (
+                      <div key={entry.id} className={`flex items-center gap-3 p-2 rounded-lg ${isCurrentUser ? "bg-accent/5" : ""}`}>
+                        <span className={`text-lg font-bold w-6 text-center ${i < 3 ? "text-warning" : "text-muted-foreground"}`}>
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {isCurrentUser ? "You" : `User ${i + 1}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Level {entry.level ?? 1}</p>
+                        </div>
+                        <span className="text-sm font-bold text-accent">{entry.total_points ?? 0} XP</span>
                       </div>
-                      <span className="text-sm font-bold text-accent">{entry.total_points} XP</span>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
