@@ -8,16 +8,12 @@ import {
   BookOpen,
   Star,
   Search,
-  Brain,
-  Target,
   Map,
   Bot,
   Mic,
   BarChart3,
   FolderLock,
-  Accessibility,
   GraduationCap,
-  Users,
   Sparkles,
   Flame,
   Award,
@@ -104,8 +100,8 @@ import type {
 ========================================================= */
 import { getLearnData } from "../features/learn/services/learnService";
 import type { LearnData } from "../features/learn/types/learn.types";
-import { getUserRoadmap, getAvailableCareerPaths } from "../features/eduroadmap/services/roadmapService";
-import type { UserEduRoadmap, RoadmapStep, SkillGapItem, NextBestStep, CareerPathOption } from "../features/eduroadmap/types/roadmap.types";
+import { getUserRoadmap } from "../features/eduroadmap/services/roadmapService";
+import type { UserEduRoadmap, RoadmapStep, SkillGapItem, NextBestStep } from "../features/eduroadmap/types/roadmap.types";
 
 /* =========================================================
    FIREBASE
@@ -121,7 +117,6 @@ import PageHeader from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 
@@ -135,13 +130,7 @@ type SectionId =
   | "eduspeak"
   | "edumentor"
   | "eduroadmap"
-  | "eduvault"
-  | "edumind"
-  | "educareer"
-  | "performance"
-  | "eduaccess"
-  | "teacherconnect"
-  | "parentconnect";
+  | "eduvault";
 
 type EduSpeakSubSection =
   | "dashboard"
@@ -233,12 +222,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "edumentor", icon: <Bot className="h-4 w-4" />, emoji: "🤖", label: "EduMentor", accent: "pink", aiPowered: true },
   { id: "eduroadmap", icon: <Map className="h-4 w-4" />, emoji: "🗺️", label: "EduRoadmap", accent: "amber", aiPowered: true },
   { id: "eduvault", icon: <FolderLock className="h-4 w-4" />, emoji: "📁", label: "EduVault", accent: "rose" },
-  { id: "edumind", icon: <Brain className="h-4 w-4" />, emoji: "🧠", label: "EduMind", accent: "violet", aiPowered: true },
-  { id: "educareer", icon: <Target className="h-4 w-4" />, emoji: "🎯", label: "EduCareer", accent: "emerald", aiPowered: true },
-  { id: "performance", icon: <BarChart3 className="h-4 w-4" />, emoji: "📊", label: "Performance", accent: "indigo" },
-  { id: "eduaccess", icon: <Accessibility className="h-4 w-4" />, emoji: "♿", label: "EduAccess", accent: "teal" },
-  { id: "teacherconnect", icon: <GraduationCap className="h-4 w-4" />, emoji: "👨‍🏫", label: "Teacher Connect", accent: "orange" },
-  { id: "parentconnect", icon: <Users className="h-4 w-4" />, emoji: "👪", label: "Parent Connect", accent: "slate" },
 ];
 
 const accentMap: Record<string, { bg: string; text: string; bar: string; border: string }> = {
@@ -330,12 +313,6 @@ const sectionBlurb = (id: SectionId): string => {
     edumentor: "24/7 dedicated AI academic mentor bot for conceptual clarification and exam preparation.",
     eduroadmap: "Milestone-driven roadmap from fundamentals to industry readiness with skill gap detection.",
     eduvault: "Tamper-proof DigiLocker-grade vault for your academic degrees, mark sheets, and certificates.",
-    edumind: "AI that analyzes your cognitive strengths, knowledge gaps, and retention trends.",
-    educareer: "Discover matched career pathways, market salaries, and skill requirements.",
-    performance: "Comprehensive marks tracker, attendance, project logs, and analytics.",
-    eduaccess: "Accessibility engine with high-contrast, text-to-speech, and voice controls.",
-    teacherconnect: "Direct communication with instructors for assignment reviews and mentoring.",
-    parentconnect: "Real-time updates on academic progress, attendance, and quarterly reports.",
   };
   return blurbs[id] || "";
 };
@@ -1383,348 +1360,6 @@ const EduVaultSection = () => {
 };
 
 /* =========================================================
-   7. EDUMIND SECTION
-========================================================= */
-const EduMindSection = () => {
-  const { user } = useAuth();
-  const [strongTopics, setStrongTopics] = useState<string[]>([]);
-  const [weakTopics, setWeakTopics] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    let isMounted = true;
-    getLearnData(user.uid)
-      .then((data) => {
-        if (!isMounted) return;
-        const strong: string[] = [];
-        const weak: string[] = [];
-        data?.subjects?.forEach((s) => {
-          if (Array.isArray(s.strongTopics)) strong.push(...s.strongTopics);
-          if (Array.isArray(s.weakTopics)) weak.push(...s.weakTopics);
-        });
-        if (Array.isArray(data?.progress?.weakTopics)) {
-          weak.push(...data.progress.weakTopics);
-        }
-        if (Array.isArray(data?.progress?.strongTopics)) {
-          strong.push(...data.progress.strongTopics);
-        }
-        setStrongTopics(Array.from(new Set(strong)).slice(0, 4));
-        setWeakTopics(Array.from(new Set(weak)).slice(0, 4));
-      })
-      .catch((err) => console.warn("EduMindSection load error:", err))
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-  const displayStrong =
-    strongTopics.length > 0
-      ? strongTopics
-      : ["Core Subject Fundamentals", "Problem Solving Logic", "Linear Data Structures"];
-  const displayWeak =
-    weakTopics.length > 0
-      ? weakTopics
-      : ["Theoretical Proofs & Formulas", "Exam Time Management", "Complex Algorithmic Edge Cases"];
-
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="rounded-2xl border-border/70">
-          <CardContent className="p-5 space-y-3">
-            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Identified Strengths ({displayStrong.length})
-            </h3>
-            <div className="space-y-2">
-              {displayStrong.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2.5 text-xs p-2.5 rounded-xl bg-muted/40 text-foreground font-medium"
-                >
-                  <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-border/70">
-          <CardContent className="p-5 space-y-3">
-            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Focus Areas for Improvement ({displayWeak.length})
-            </h3>
-            <div className="space-y-2">
-              {displayWeak.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2.5 text-xs p-2.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium"
-                >
-                  <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="rounded-2xl border-border/70">
-        <CardContent className="p-5 space-y-3">
-          <h3 className="font-bold text-base text-foreground">Cognitive Learning Style Profile</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            AI analysis shows high visual & hands-on practical retention. Spaced revision every 3-4 days recommended for high-retention mastery.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-/* =========================================================
-   8. EDUCAREER SECTION
-========================================================= */
-const EduCareerSection = () => {
-  const navigate = useNavigate();
-  const { profile } = useAuth();
-  const [careers, setCareers] = useState<CareerPathOption[]>([]);
-
-  useEffect(() => {
-    getAvailableCareerPaths().then(setCareers).catch(console.warn);
-  }, []);
-
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {careers.slice(0, 6).map((track) => {
-          const isCurrent = track.title === profile?.career_interest;
-          return (
-            <Card
-              key={track.id}
-              className={`rounded-2xl border-border/70 hover:border-primary/40 transition-all ${
-                isCurrent ? "ring-2 ring-primary/30 border-primary/40 bg-primary/5" : ""
-              }`}
-            >
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-bold">
-                    {track.demandLevel} Demand
-                  </Badge>
-                  {isCurrent && (
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
-                      Active Target
-                    </span>
-                  )}
-                </div>
-                <h4 className="font-bold text-base text-foreground">{track.title}</h4>
-                <p className="text-xs text-muted-foreground line-clamp-2">{track.description}</p>
-                <p className="text-xs text-muted-foreground">
-                  Typical Duration: <span className="font-semibold text-foreground">{track.estimatedDuration}</span>
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => navigate("/eduroadmap")}
-                  className="w-full text-xs rounded-xl mt-2 font-bold"
-                >
-                  View Career Pathway →
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-/* =========================================================
-   9. PERFORMANCE SECTION
-========================================================= */
-const PerformanceSection = () => {
-  const { user } = useAuth();
-  const [learnData, setLearnData] = useState<LearnData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    let isMounted = true;
-    getLearnData(user.uid)
-      .then((data) => {
-        if (isMounted) setLearnData(data);
-      })
-      .catch((err) => console.warn("PerformanceSection load error:", err))
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-  const subjects = learnData?.subjects || [];
-  const avgQuizScore = learnData?.progress?.quizPerformance ?? 78;
-
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <StatPill
-          icon={<BarChart3 className="h-5 w-5" />}
-          label="Average Score"
-          value={isLoading ? "..." : `${avgQuizScore}%`}
-          accent="indigo"
-        />
-        <StatPill
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          label="Syllabus Mastery"
-          value={isLoading ? "..." : `${learnData?.progress?.overallProgress ?? 72}%`}
-          accent="emerald"
-        />
-        <StatPill
-          icon={<FileText className="h-5 w-5" />}
-          label="Assignments Done"
-          value={isLoading ? "..." : `${learnData?.assignments?.filter((a) => a.status === "Evaluated" || a.status === "Submitted").length || 0}`}
-          accent="blue"
-        />
-        <StatPill
-          icon={<Award className="h-5 w-5" />}
-          label="Quizzes Taken"
-          value={isLoading ? "..." : `${learnData?.quizAttempts?.length || 0}`}
-          accent="amber"
-        />
-      </div>
-
-      <Card className="rounded-2xl border-border/70">
-        <CardContent className="p-6 space-y-4">
-          <h3 className="font-bold text-base text-foreground">Course Subject Breakdown</h3>
-          {isLoading ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">Loading performance breakdown...</div>
-          ) : subjects.length === 0 ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">No enrolled subjects registered yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {subjects.map((subject) => (
-                <div key={subject.id} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="font-semibold text-foreground">{subject.name}</span>
-                    <span className="text-muted-foreground font-bold">{subject.progress}% Completed</span>
-                  </div>
-                  <ProgressBar value={subject.progress} accent="indigo" />
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-/* =========================================================
-   10. EDUACCESS SECTION
-========================================================= */
-const EduAccessSection = () => {
-  const [settings, setSettings] = useState({
-    highContrast: false,
-    tts: true,
-    screenReader: false,
-    voiceControl: false,
-  });
-
-  const items = [
-    { key: "highContrast", label: "High Contrast Mode", desc: "Enhances text legibility for visually impaired students." },
-    { key: "tts", label: "Text-to-Speech Engine", desc: "Reads out chapter summaries and quizzes automatically." },
-    { key: "screenReader", label: "Screen Reader Support", desc: "Optimizes ARIA labels for accessibility assistive tech." },
-    { key: "voiceControl", label: "Voice Navigation", desc: "Navigate syllabus and tests with speech recognition." },
-  ] as const;
-
-  return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">Configure accessibility and assistive learning options across your workspace.</p>
-      <div className="grid sm:grid-cols-2 gap-3.5">
-        {items.map((item) => (
-          <Card key={item.key} className="rounded-2xl border-border/70">
-            <CardContent className="p-4 flex justify-between items-center gap-4">
-              <div className="space-y-0.5">
-                <span className="text-sm font-bold text-foreground block">{item.label}</span>
-                <span className="text-[11px] text-muted-foreground block">{item.desc}</span>
-              </div>
-              <Switch
-                checked={settings[item.key]}
-                onCheckedChange={(value) => setSettings((prev) => ({ ...prev, [item.key]: value }))}
-              />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/* =========================================================
-   11. TEACHER CONNECT SECTION
-========================================================= */
-const TeacherConnectSection = () => (
-  <Card className="rounded-2xl border-border/70">
-    <CardContent className="p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold">
-          SK
-        </div>
-        <div>
-          <h4 className="text-sm font-bold text-foreground">Prof. S. Kulkarni</h4>
-          <p className="text-xs text-muted-foreground">Department of Computer Science • DBMS Lead</p>
-        </div>
-      </div>
-      <p className="text-xs text-foreground leading-relaxed p-3.5 rounded-xl bg-muted/40">
-        "Your ER diagram normalization assignment was well constructed. Please make sure to test multi-valued dependency edge cases before next week's exam."
-      </p>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="rounded-xl text-xs font-bold">
-          Reply to Instructor
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
-
-/* =========================================================
-   12. PARENT CONNECT SECTION
-========================================================= */
-const ParentConnectSection = () => (
-  <div className="space-y-4">
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-      <StatPill icon={<CheckCircle2 className="h-5 w-5" />} label="Attendance" value="92%" accent="emerald" />
-      <StatPill icon={<TrendingUp className="h-5 w-5" />} label="Academic Progress" value="79%" accent="blue" />
-      <StatPill icon={<BookOpen className="h-5 w-5" />} label="Syllabus Completion" value="72%" accent="violet" />
-      <StatPill icon={<Award className="h-5 w-5" />} label="Certificates Earned" value="4" accent="amber" />
-    </div>
-    <Card className="rounded-2xl border-border/70">
-      <CardContent className="p-5 flex items-center justify-between">
-        <div>
-          <h4 className="text-sm font-bold text-foreground">Quarterly Performance Summary</h4>
-          <p className="text-xs text-muted-foreground">Verified by University Academic Council</p>
-        </div>
-        <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 font-bold">
-          <FileText className="h-3.5 w-3.5" /> Download Report Card
-        </Button>
-      </CardContent>
-    </Card>
-  </div>
-);
-
-/* =========================================================
    SCHEDULE CHECKLIST WIDGET
 ========================================================= */
 const ScheduleChecklist = ({ plan, onToggle }: { plan: PlanItem[]; onToggle: (id: string) => void }) => (
@@ -1808,12 +1443,6 @@ const EducationPage = () => {
       case "edumentor": return <EduMentorSection />;
       case "eduroadmap": return <EduRoadmapSection />;
       case "eduvault": return <EduVaultSection />;
-      case "edumind": return <EduMindSection />;
-      case "educareer": return <EduCareerSection />;
-      case "performance": return <PerformanceSection />;
-      case "eduaccess": return <EduAccessSection />;
-      case "teacherconnect": return <TeacherConnectSection />;
-      case "parentconnect": return <ParentConnectSection />;
       default: return null;
     }
   };
