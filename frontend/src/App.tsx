@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import { DashboardLanguageProvider } from "@/contexts/DashboardLanguageContext";
+import { ScreenReaderProvider } from "@/contexts/ScreenReaderContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AIChatDialog from "@/components/AIChatDialog";
 import HandGestureController from "@/components/HandGestureController";
@@ -42,7 +43,8 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
+              <ScreenReaderProvider>
+                <Routes>
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/vault/share/:token" element={<SharedDocumentViewer />} />
                 <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
@@ -65,9 +67,10 @@ const App = () => (
                 <Route path="/accessibility" element={<ProtectedRoute><AccessibilityPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-              <AIChatDialog />
-              <HandGestureController />
+                </Routes>
+                <AIChatDialog />
+                <HandGestureController />
+              </ScreenReaderProvider>
             </BrowserRouter>
           </DashboardLanguageProvider>
         </AuthProvider>
