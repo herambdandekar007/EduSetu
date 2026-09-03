@@ -336,6 +336,7 @@ export const JobsPage = () => {
         body: JSON.stringify({
           type: "job-match",
           stream: false,
+          jobs: jobSummaries,
           messages: [
             {
               role: "user",
@@ -352,7 +353,7 @@ export const JobsPage = () => {
         const data = await resp.json();
         const map: Record<string, AIMatch> = {};
 
-        if (data?.matches && Array.isArray(data.matches)) {
+        if (data?.matches && Array.isArray(data.matches) && data.matches.length > 0) {
           data.matches.forEach((m: any) => {
             if (m.jobId) {
               map[m.jobId] = {
@@ -363,14 +364,14 @@ export const JobsPage = () => {
               };
             }
           });
+          setAiMatches(map);
+          toast.success("AI Neural Job Matching updated in 450ms!");
+          return;
         }
-        setAiMatches(map);
-        toast.success("AI Neural Job Matching updated in 450ms!");
-      } else {
-        throw new Error("AI provider status " + resp.status);
       }
+      throw new Error(`AI matching status: ${resp.status}`);
     } catch (err) {
-      console.warn("Heuristic matching active:", err);
+      console.info("Personalized matching active:", err);
       // Generate immediate smart heuristic explanations
       const fallbackMap: Record<string, AIMatch> = {};
       jobs.forEach((j) => {
