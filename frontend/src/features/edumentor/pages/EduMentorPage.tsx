@@ -2,6 +2,7 @@
 // Dedicated EduMentor AI workspace connecting all personal education mentoring modules.
 
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Bot,
   LayoutDashboard,
@@ -43,6 +44,7 @@ import {
 
 export const EduMentorPage: React.FC = () => {
   const { user, profile } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [context, setContext] = useState<StudentLearningContext | null>(null);
@@ -51,6 +53,15 @@ export const EduMentorPage: React.FC = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatInitialPrompt, setChatInitialPrompt] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Initialize prompt from URL query if present
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (prompt) {
+      setChatInitialPrompt(prompt);
+      setActiveTab("chat");
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     if (!user) return;

@@ -2,6 +2,7 @@
 // Complete Learn Module with Left-Sidebar Vertical Switcher for all Learn functions.
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -155,12 +156,42 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
 
   const data = providedData ?? selfData;
 
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<LearnFunctionKey>("dashboard");
 
   // Drill-down states
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+
+  // Deep linking via URL query parameters
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as LearnFunctionKey | null;
+    const validTabs: LearnFunctionKey[] = [
+      "dashboard",
+      "subjects",
+      "materials",
+      "quizzes",
+      "quiz-analysis",
+      "assignments",
+      "adaptive",
+      "next-action",
+      "revision",
+      "difficulty",
+    ];
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    const topicParam = searchParams.get("topic");
+    if (topicParam) {
+      setActiveTab("subjects");
+    }
+    const subjectIdParam = searchParams.get("subjectId");
+    if (subjectIdParam && data?.subjects?.length) {
+      const match = data.subjects.find((s) => s.id === subjectIdParam);
+      if (match) setSelectedSubject(match);
+    }
+  }, [searchParams, data]);
 
   const context = useMemo(() => buildContext(data), [data]);
   const difficultySettings = useMemo(
@@ -207,11 +238,23 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
   const handleUploadSubmission = async () => {
     if (!selectedAssignment) return;
     try {
-      await submitAssignment(selectedAssignment.id, "Completed assignment submitted online.");
+      const evaluation = await submitAssignment(
+        selectedAssignment.id,
+        "Completed assignment submitted online with thorough solutions.",
+        undefined,
+        {
+          assignmentTitle: selectedAssignment.topic || "Course Assignment",
+          subject: selectedAssignment.subject || "Core Curriculum",
+          instructions: selectedAssignment.instructions,
+        }
+      );
       setSelectedAssignment({
         ...selectedAssignment,
-        status: "Submitted",
-        submissionStatus: "Submitted",
+        status: "Evaluated",
+        submissionStatus: "Evaluated",
+        score: evaluation.score,
+        grade: evaluation.grade,
+        aiFeedback: evaluation.feedback,
       });
     } catch (error) {
       console.error("Failed to submit assignment:", error);

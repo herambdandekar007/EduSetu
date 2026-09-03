@@ -92,7 +92,7 @@ export async function fetchStudentLearningContext(
       // Keep default subjects if collection empty
     }
 
-    // Read Quiz Attempts to calculate recent accuracy and identify weak topics
+    // Read Quiz Attempts to calculate recent accuracy and identify real weak topics
     try {
       const quizQ = query(
         collection(db, "quizAttempts"),
@@ -112,9 +112,31 @@ export async function fetchStudentLearningContext(
         if (accuracies.length) {
           recentAccuracy = Math.round(accuracies.reduce((sum, v) => sum + v, 0) / accuracies.length);
         }
+
+        // Dynamically extract real weak topics and mistake patterns from quiz attempts
+        const realWeakTopics: string[] = [];
+        attempts.forEach((a: any) => {
+          if (Array.isArray(a.weakTopics)) {
+            realWeakTopics.push(...a.weakTopics);
+          }
+          if (Array.isArray(a.weakConcepts)) {
+            realWeakTopics.push(...a.weakConcepts);
+          }
+          if (Array.isArray(a.answers)) {
+            a.answers.forEach((ans: any) => {
+              if (ans.isCorrect === false) {
+                if (ans.topic) realWeakTopics.push(ans.topic);
+                if (ans.conceptTested) realWeakTopics.push(ans.conceptTested);
+              }
+            });
+          }
+        });
+        if (realWeakTopics.length) {
+          weakTopics = Array.from(new Set([...realWeakTopics, ...weakTopics])).slice(0, 8);
+        }
       }
     } catch {
-      // Keep calculated accuracy
+      // Keep calculated accuracy and topics
     }
   } catch (err) {
     console.warn("fetchStudentLearningContext Firestore warning:", err);

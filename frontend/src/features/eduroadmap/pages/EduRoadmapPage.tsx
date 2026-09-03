@@ -21,6 +21,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/integrations/firebase/client";
 import {
   RoadmapOverview,
   RoadmapTimeline,
@@ -174,7 +176,7 @@ export const EduRoadmapPage: React.FC = () => {
   };
 
   const handleStartLearning = (step: RoadmapStep) => {
-    navigate("/education");
+    navigate(`/learn?topic=${encodeURIComponent(step.title)}`);
   };
 
   const handleAskMentor = (stepOrPrompt: RoadmapStep | string) => {
@@ -191,6 +193,16 @@ export const EduRoadmapPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // Persist career interest to profile document
+      try {
+        await updateDoc(doc(db, "profiles", user.uid), {
+          career_interest: career.title,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn("Could not update career_interest in profile:", err);
+      }
+
       const generated = await generateAIRoadmap({
         careerName: career.title,
         educationLevel: profile?.education_level || "Undergraduate",

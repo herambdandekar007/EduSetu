@@ -99,6 +99,14 @@ import type {
 } from "../features/edumentor/types/mentor.types";
 
 /* =========================================================
+   LEARN & ROADMAP SERVICES
+========================================================= */
+import { getLearnData } from "../features/learn/services/learnService";
+import type { LearnData } from "../features/learn/types/learn.types";
+import { getUserRoadmap } from "../features/eduroadmap/services/roadmapService";
+import type { UserEduRoadmap, RoadmapStep, SkillGapItem, NextBestStep } from "../features/eduroadmap/types/roadmap.types";
+
+/* =========================================================
    FIREBASE
 ========================================================= */
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -493,54 +501,33 @@ const OverviewSection = ({ onOpenSection }: { onOpenSection: (id: SectionId) => 
 ========================================================= */
 const LearnSection = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [learnData, setLearnData] = useState<LearnData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const subjects = [
-    {
-      id: "sub-1",
-      name: "Database Management Systems",
-      code: "CS-301",
-      chapters: 8,
-      topics: 34,
-      progress: 82,
-      teacher: "Prof. S. Kulkarni",
-      score: "85% Avg",
-    },
-    {
-      id: "sub-2",
-      name: "Data Structures & Algorithms",
-      code: "CS-302",
-      chapters: 10,
-      topics: 42,
-      progress: 68,
-      teacher: "Dr. R. Sharma",
-      score: "78% Avg",
-    },
-    {
-      id: "sub-3",
-      name: "Operating Systems & Concurrency",
-      code: "CS-303",
-      chapters: 7,
-      topics: 28,
-      progress: 74,
-      teacher: "Prof. A. Verma",
-      score: "80% Avg",
-    },
-    {
-      id: "sub-4",
-      name: "Mathematics & Applied Statistics",
-      code: "MA-201",
-      chapters: 6,
-      topics: 26,
-      progress: 60,
-      teacher: "Dr. P. Nair",
-      score: "65% Avg",
-    },
-  ];
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    let isMounted = true;
+    getLearnData(user.uid)
+      .then((data) => {
+        if (isMounted) setLearnData(data);
+      })
+      .catch((err) => console.warn("Failed to load learn data in EducationPage:", err))
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
+  const subjects = learnData?.subjects || [];
   const filtered = subjects.filter((s) =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.code.toLowerCase().includes(searchTerm.toLowerCase())
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -581,25 +568,29 @@ const LearnSection = () => {
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">My Subjects</span>
-          <h4 className="text-lg font-bold text-foreground">4 Active</h4>
+          <h4 className="text-lg font-bold text-foreground">{isLoading ? "..." : `${subjects.length} Active`}</h4>
           <p className="text-[11px] text-muted-foreground">Personalized by EduID</p>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Learning Materials</span>
-          <h4 className="text-lg font-bold text-indigo-600">12+ Available</h4>
+          <h4 className="text-lg font-bold text-indigo-600">{isLoading ? "..." : `${learnData?.materials?.length || 0} Available`}</h4>
           <p className="text-[11px] text-muted-foreground">Notes, PDFs, Videos</p>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Quizzes & Tests</span>
-          <h4 className="text-lg font-bold text-emerald-600 dark:text-emerald-400">78% Avg Score</h4>
+          <h4 className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+            {isLoading ? "..." : `${learnData?.progress?.quizPerformance ?? 78}% Avg Score`}
+          </h4>
           <p className="text-[11px] text-muted-foreground">Diagnostic AI analysis</p>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Adaptive Mastery</span>
-          <h4 className="text-lg font-bold text-cyan-600">72% Completed</h4>
+          <h4 className="text-lg font-bold text-cyan-600">
+            {isLoading ? "..." : `${learnData?.progress?.overallProgress ?? 72}% Completed`}
+          </h4>
           <button onClick={() => navigate("/learn")} className="text-[11px] text-indigo-600 hover:underline font-semibold flex items-center gap-1">
             Open Learn Hub →
           </button>
@@ -620,53 +611,65 @@ const LearnSection = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((subject) => (
-            <Card key={subject.id} className="rounded-2xl border-border/70 bg-card/60 hover:border-indigo-500/40 transition-all">
-              <CardContent className="p-5 space-y-3.5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge variant="outline" className="text-[10px] font-semibold mb-1">
-                      {subject.code}
+        {isLoading ? (
+          <div className="p-12 text-center text-sm font-semibold text-muted-foreground">
+            Synchronizing student curriculum...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-sm border border-dashed rounded-2xl text-muted-foreground">
+            No subjects found. Add subjects in Education Profile or click Open Learn Workspace.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filtered.map((subject) => (
+              <Card key={subject.id} className="rounded-2xl border-border/70 bg-card/60 hover:border-indigo-500/40 transition-all">
+                <CardContent className="p-5 space-y-3.5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <Badge variant="outline" className="text-[10px] font-semibold mb-1">
+                        {subject.id}
+                      </Badge>
+                      <h4 className="font-bold text-base text-foreground">{subject.name}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {subject.teacher} • {subject.chapters} Chapters • {subject.topics} Topics
+                      </p>
+                    </div>
+                    <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-xs">
+                      {subject.quizPerformance ? `${subject.quizPerformance}% Avg` : "Active"}
                     </Badge>
-                    <h4 className="font-bold text-base text-foreground">{subject.name}</h4>
-                    <p className="text-xs text-muted-foreground">{subject.teacher} • {subject.chapters} Chapters • {subject.topics} Topics</p>
                   </div>
-                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-xs">
-                    {subject.score}
-                  </Badge>
-                </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-muted-foreground">Syllabus Completion</span>
-                    <span className="font-bold text-foreground">{subject.progress}%</span>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="text-muted-foreground">Syllabus Completion</span>
+                      <span className="font-bold text-foreground">{subject.progress}%</span>
+                    </div>
+                    <ProgressBar value={subject.progress} accent="indigo" />
                   </div>
-                  <ProgressBar value={subject.progress} accent="indigo" />
-                </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate("/learn")}
-                    className="text-xs rounded-xl gap-1 font-bold"
-                  >
-                    <BookOpen className="h-3.5 w-3.5" /> Start Learning
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => navigate("/learn")}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 font-bold"
-                  >
-                    View Materials →
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/learn?tab=subjects&subjectId=${subject.id}`)}
+                      className="text-xs rounded-xl gap-1 font-bold"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" /> Start Learning
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigate(`/learn?tab=materials&subjectId=${subject.id}`)}
+                      className="text-xs text-indigo-600 hover:text-indigo-700 font-bold"
+                    >
+                      View Materials →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1011,10 +1014,48 @@ const EduMentorSection = () => {
 ========================================================= */
 const EduRoadmapSection = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const [roadmapData, setRoadmapData] = useState<UserEduRoadmap | null>(null);
+  const [steps, setSteps] = useState<RoadmapStep[]>([]);
+  const [skillGaps, setSkillGaps] = useState<SkillGapItem[]>([]);
+  const [nextSteps, setNextSteps] = useState<NextBestStep[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    let isMounted = true;
+    getUserRoadmap(user.uid)
+      .then((data) => {
+        if (!isMounted) return;
+        setRoadmapData(data.roadmap);
+        setSteps(data.steps || []);
+        setSkillGaps(data.skillGaps || []);
+        setNextSteps(data.nextSteps || []);
+      })
+      .catch((err) => console.warn("Failed to load roadmap in EducationPage:", err))
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const activeStep =
+    steps.find((s) => s.status === "in_progress") ||
+    steps.find((s) => s.status === "recommended") ||
+    steps[0];
+  const completedCount = steps.filter((s) => s.status === "completed").length;
+  const progressPct =
+    roadmapData?.overallProgress ??
+    (steps.length ? Math.round((completedCount / steps.length) * 100) : 68);
 
   return (
     <div className="space-y-6">
+      {/* Active Roadmap Banner */}
       <Card className="rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-primary/5 to-background shadow-sm">
         <CardContent className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
@@ -1023,7 +1064,7 @@ const EduRoadmapSection = () => {
                 🗺️ ACTIVE CAREER ROADMAP
               </span>
               <Badge variant="outline" className="text-xs">
-                {profile?.career_interest || "Software Engineering & Fullstack"}
+                {roadmapData?.careerName || profile?.career_interest || "Software Engineering & Fullstack"}
               </Badge>
             </div>
             <h3 className="text-lg font-bold text-foreground">
@@ -1046,33 +1087,101 @@ const EduRoadmapSection = () => {
         </CardContent>
       </Card>
 
+      {/* Real Roadmap Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Current Stage</span>
-          <h4 className="text-sm font-bold text-foreground">Technical Skills & DSA</h4>
-          <p className="text-[11px] text-amber-600 font-medium">Milestone 3 of 7 Active</p>
+          <h4 className="text-sm font-bold text-foreground">
+            {isLoading ? "Loading..." : activeStep?.stage || roadmapData?.currentStage || "Foundation"}
+          </h4>
+          <p className="text-[11px] text-amber-600 font-medium">
+            Milestone {completedCount + 1} of {steps.length || 7} Active
+          </p>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Readiness Score</span>
-          <h4 className="text-sm font-bold text-emerald-600 dark:text-emerald-400">68% Industry Ready</h4>
+          <h4 className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+            {isLoading ? "..." : `${progressPct}% Industry Ready`}
+          </h4>
           <p className="text-[11px] text-muted-foreground">Validated via diagnostic checks</p>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Next Action</span>
-          <h4 className="text-sm font-bold text-foreground">Linear Data Structures</h4>
-          <p className="text-[11px] text-muted-foreground">Estimated: 3 Days</p>
+          <h4 className="text-sm font-bold text-foreground truncate" title={activeStep?.title}>
+            {isLoading ? "..." : activeStep?.title || roadmapData?.nextMilestone || "Core Foundations"}
+          </h4>
+          <p className="text-[11px] text-muted-foreground">Estimated: {activeStep?.estimatedDuration || "3 Days"}</p>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/70 bg-card space-y-1.5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Skill Gaps</span>
-          <h4 className="text-sm font-bold text-rose-500">2 Critical Gaps</h4>
+          <h4 className="text-sm font-bold text-rose-500">
+            {isLoading ? "..." : `${skillGaps.length || 2} Critical Gaps`}
+          </h4>
           <button onClick={() => navigate("/eduroadmap")} className="text-[11px] text-amber-600 hover:underline font-semibold">
-            Bridge Gaps →
+            Bridge Gaps in EduRoadmap →
           </button>
         </div>
       </div>
+
+      {/* Live Next Best Actions Widget */}
+      {nextSteps.length > 0 && (
+        <div className="p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              Prioritized Next Best Actions for Your Roadmap
+            </h4>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/eduroadmap")}
+              className="text-xs text-amber-600 hover:text-amber-700"
+            >
+              View All Milestones →
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {nextSteps.slice(0, 2).map((step) => (
+              <div
+                key={step.id}
+                className="p-3.5 rounded-xl border border-border/70 bg-card/80 flex flex-col justify-between gap-3"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <Badge variant="outline" className="text-[10px] uppercase font-bold text-amber-600 border-amber-500/30">
+                      {step.type}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground font-medium">{step.estimatedTime}</span>
+                  </div>
+                  <h5 className="text-xs font-bold text-foreground">{step.title}</h5>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">{step.reason}</p>
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/edumentor?prompt=${encodeURIComponent(`Guide me on: ${step.title}`)}`)}
+                    className="text-[11px] h-7 rounded-lg gap-1"
+                  >
+                    <Bot className="h-3 w-3 text-pink-500" /> Ask EduMentor
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/learn?topic=${encodeURIComponent(step.subjectOrSkill || step.title)}`)}
+                    className="text-[11px] h-7 rounded-lg gap-1 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    <BookOpen className="h-3 w-3" /> Learn Topic
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
