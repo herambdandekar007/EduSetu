@@ -409,6 +409,7 @@ interface ScreenReaderContextType {
   setIsDragging: (dragging: boolean) => void;
   speak: (text: string, priority?: boolean) => void;
   executeCommand: (commandStr: string) => void;
+  restartMic: () => void;
 }
 
 const ScreenReaderContext = createContext<ScreenReaderContextType | null>(null);
@@ -468,6 +469,9 @@ export const ScreenReaderProvider: React.FC<{ children: ReactNode }> = ({ childr
   const lastSpokenRef = useRef(lastSpoken);
   const lastActionTimeRef = useRef(0);
   const restartTimeoutRef = useRef<any>(null);
+  const analyzeAndExecuteRef = useRef<((speech: string) => void) | null>(null);
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
 
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -679,6 +683,11 @@ export const ScreenReaderProvider: React.FC<{ children: ReactNode }> = ({ childr
     [navigate, speak]
   );
 
+  // Keep ref in sync for stable speech recognition callbacks
+  useEffect(() => {
+    analyzeAndExecuteRef.current = analyzeAndExecute;
+  }, [analyzeAndExecute]);
+
   const executeCommand = useCallback(
     (commandStr: string) => {
       analyzeAndExecute(commandStr);
@@ -752,17 +761,21 @@ export const ScreenReaderProvider: React.FC<{ children: ReactNode }> = ({ childr
 
         if (finalTranscript.trim()) {
           setTranscript(finalTranscript.trim());
-          analyzeAndExecute(finalTranscript.trim());
+          analyzeAndExecuteRef.current?.(finalTranscript.trim());
         }
       };
 
       recognition.onerror = (e: any) => {
         if (e.error === "not-allowed" || e.error === "service-not-allowed") {
           setIsListening(false);
-          setMicError("Microphone permission denied. Please allow microphone in your browser settings.");
+          setMicError("Microphone permission denied. Please allow microphone in your browser settings and click Restart Microphone.");
         } else if (e.error === "network") {
-          setMicError("Network error with speech recognition. Reconnecting...");
-        } else if (e.error !== "no-speech" && e.error !== "aborted") {
+          setMicError("Network error with speech recognition. Click Restart Microphone to reconnect.");
+        } else if (e.error === "aborted") {
+          // Intentional abort, ignore
+        } else if (e.error === "no-speech") {
+          // No speech detected, continue listening
+        } else {
           console.warn("Speech recognition notice:", e.error);
         }
       };
@@ -775,7 +788,25 @@ export const ScreenReaderProvider: React.FC<{ children: ReactNode }> = ({ childr
         setIsListening(true);
       }
     }
-  }, [analyzeAndExecute]);
+  }, []);
+
+  const restartMic = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.abort();
+      } catch {}
+    }
+    setMicError(null);
+    setIsListening(false);
+    setTimeout(() => {
+      if (isActiveRef.current) {
+        startListeningInstance();
+      }
+    }, 200);
+  }, [startListeningInstance]);
 
   const activate = useCallback(() => {
     isActiveRef.current = true;
@@ -989,6 +1020,7 @@ export const ScreenReaderProvider: React.FC<{ children: ReactNode }> = ({ childr
         setIsDragging,
         speak,
         executeCommand,
+        restartMic,
       }}
     >
       {children}

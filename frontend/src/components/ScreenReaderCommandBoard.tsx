@@ -20,6 +20,9 @@ import {
   Keyboard,
   Radio,
   AlertTriangle,
+  RefreshCw,
+  Send,
+  Info,
 } from "lucide-react";
 
 export const ScreenReaderCommandBoard: React.FC = () => {
@@ -37,10 +40,14 @@ export const ScreenReaderCommandBoard: React.FC = () => {
     setCommandBoardWidth,
     setIsDragging,
     deactivate,
+    restartMic,
+    executeCommand,
   } = useScreenReader();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<"all" | "navigation" | "reading" | "control">("all");
+  const [commandInput, setCommandInput] = useState("");
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -174,9 +181,78 @@ export const ScreenReaderCommandBoard: React.FC = () => {
         </div>
 
         {micError && (
-          <div className="mt-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-2 text-amber-300 text-xs">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
-            <p className="leading-tight text-[11px]">{micError}</p>
+          <div className="mt-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-amber-300 text-xs">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
+              <p className="leading-tight text-[11px]">{micError}</p>
+            </div>
+            <button
+              onClick={restartMic}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-semibold hover:bg-amber-500/30 transition-colors w-fit"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Restart Microphone
+            </button>
+          </div>
+        )}
+
+        {!micError && !isListening && isActive && (
+          <div className="mt-2.5 flex items-center gap-2">
+            <button
+              onClick={restartMic}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold hover:bg-emerald-500/30 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Restart Microphone
+            </button>
+          </div>
+        )}
+
+        <div className="mt-2.5 flex gap-2">
+          <input
+            type="text"
+            placeholder='Type command (e.g. go to home)...'
+            value={commandInput}
+            onChange={(e) => setCommandInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && commandInput.trim()) {
+                executeCommand(commandInput.trim());
+                setCommandInput("");
+              }
+            }}
+            className="flex-1 bg-slate-950/70 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 transition-all"
+          />
+          <button
+            onClick={() => {
+              if (commandInput.trim()) {
+                executeCommand(commandInput.trim());
+                setCommandInput("");
+              }
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-colors"
+            title="Send command"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <button
+          onClick={() => setShowInstructions(!showInstructions)}
+          className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-emerald-400 transition-colors"
+        >
+          <Info className="w-3 h-3" />
+          {showInstructions ? "Hide" : "Show"} Voice Command Instructions
+        </button>
+
+        {showInstructions && (
+          <div className="mt-2 p-2.5 rounded-lg bg-slate-950/60 border border-emerald-500/20 text-[11px] text-slate-300 space-y-1.5">
+            <p className="font-semibold text-emerald-400">How to use Voice Commands:</p>
+            <p>1. Click "Screen Reader" button (bottom-right) or press <kbd className="font-mono bg-white/10 px-1 rounded text-white">Alt+S</kbd></p>
+            <p>2. Allow microphone permission when browser asks</p>
+            <p>3. Wait for <span className="text-red-400 font-semibold">MIC LIVE</span> indicator</p>
+            <p>4. Speak clearly: <span className="text-emerald-300 font-semibold">"go to home"</span>, <span className="text-emerald-300 font-semibold">"go to schemes"</span>, <span className="text-emerald-300 font-semibold">"scroll down"</span></p>
+            <p>5. Or type commands in the text box above and press Enter</p>
+            <p className="text-slate-500 mt-1">Tip: Use Chrome or Edge for best speech recognition support</p>
           </div>
         )}
 
@@ -191,7 +267,7 @@ export const ScreenReaderCommandBoard: React.FC = () => {
                 }`}
               />
               <span className="text-[11px] font-medium text-slate-300">
-                {isListening ? "Listening... Say any command" : "Microphone initializing..."}
+                {isListening ? "Listening... Say any command" : "Microphone not active"}
               </span>
             </div>
             <div className="flex items-center gap-1">
