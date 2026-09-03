@@ -28,6 +28,8 @@ import {
   FileText,
   DollarSign,
   Share2,
+  Users,
+  Accessibility,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -47,6 +49,8 @@ export type SchemeCategory =
   | "Healthcare"
   | (string & {});
 
+export type SchemeAudience = "All" | "General" | "PwD";
+
 export interface Scheme {
   id: string;
   name: string;
@@ -61,6 +65,7 @@ export interface Scheme {
   portalUrl: string;
   deadline?: string;
   featured?: boolean;
+  targetAudience?: "all" | "pwd" | "general";
 }
 
 // ── Comprehensive Verified Indian Government & NGO Schemes ─────────────────
@@ -83,6 +88,7 @@ const VERIFIED_SCHEMES: Scheme[] = [
     portalUrl: "http://www.alimco.in",
     deadline: "Open All Year (Quarterly Camps)",
     featured: true,
+    targetAudience: "pwd",
   },
   {
     id: "scheme-scholarship-2",
@@ -103,6 +109,7 @@ const VERIFIED_SCHEMES: Scheme[] = [
     portalUrl: "https://scholarships.gov.in",
     deadline: "October 31, 2026",
     featured: true,
+    targetAudience: "pwd",
   },
   {
     id: "scheme-nhfdc-3",
@@ -122,6 +129,7 @@ const VERIFIED_SCHEMES: Scheme[] = [
     portalUrl: "http://www.nhfdc.nic.in",
     deadline: "Open All Year",
     featured: false,
+    targetAudience: "pwd",
   },
   {
     id: "scheme-free-coaching-4",
@@ -141,6 +149,7 @@ const VERIFIED_SCHEMES: Scheme[] = [
     portalUrl: "https://coaching.dosje.gov.in",
     deadline: "August 31, 2026",
     featured: true,
+    targetAudience: "pwd",
   },
   {
     id: "scheme-ayushman-5",
@@ -160,6 +169,7 @@ const VERIFIED_SCHEMES: Scheme[] = [
     portalUrl: "https://pmjay.gov.in",
     deadline: "Valid Throughout Year",
     featured: false,
+    targetAudience: "pwd",
   },
   {
     id: "scheme-fellowship-6",
@@ -179,6 +189,168 @@ const VERIFIED_SCHEMES: Scheme[] = [
     portalUrl: "https://www.ugc.gov.in",
     deadline: "Bi-annual Cycles",
     featured: true,
+    targetAudience: "pwd",
+  },
+  // ── Verified National Schemes for Normal People / General Citizens & Students ────
+  {
+    id: "scheme-general-yasasvi-7",
+    name: "PM-YASASVI (Young Achievers Scholarship Scheme for Vibrant India)",
+    ministry: "Ministry of Social Justice & Ministry of Education",
+    category: "Scholarship",
+    benefitAmount: "Up to ₹1,25,000 / year (Full Tuition + Hostel & Books Allowance)",
+    disabilityCriteria: "None required — Open to all normal/general, OBC, EBC & DNT students",
+    incomeLimit: "Annual family income up to ₹2.5 Lakh",
+    description: "Prestigious national merit-based scholarship for meritorious school (Class 9-12) and top-class college/degree students across India without requiring any disability certificate.",
+    requiredDocuments: ["Class 8th / 10th Marksheet", "Aadhaar Card", "Income Certificate", "College/School Admission Proof", "Bank Passbook"],
+    applicationSteps: [
+      { step: "Register on YET Portal", detail: "Apply online at National Testing Agency (NTA) YASASVI portal (yet.nta.ac.in)." },
+      { step: "Merit Screening", detail: "Submit qualifying board exam marks or appear for NTA entrance examination." },
+      { step: "Direct Benefit Transfer", detail: "Scholarship credited directly to student's bank account for tuition and living expenses." },
+    ],
+    portalUrl: "https://yet.nta.ac.in",
+    deadline: "October 15, 2026",
+    featured: true,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-csss-8",
+    name: "Central Sector Scheme of Scholarships for College & University Students (CSSS)",
+    ministry: "Department of Higher Education, Ministry of Education",
+    category: "Scholarship",
+    benefitAmount: "₹12,000 / year (Graduation) to ₹20,000 / year (Post-Graduation)",
+    disabilityCriteria: "None required — Open to all regular college students based on Class 12 merit",
+    incomeLimit: "Gross family income up to ₹4.5 Lakh per annum",
+    description: "Financial assistance for meritorious general, OBC, SC, and ST students from recognized state & central boards who score above the 80th percentile in Class 12 and pursue regular graduation degrees.",
+    requiredDocuments: ["Class 12th Board Marksheet", "College Bonafide Certificate / ID", "Aadhaar Card", "Income Certificate", "Bank Account Details"],
+    applicationSteps: [
+      { step: "Register on NSP", detail: "Log in to the National Scholarship Portal (scholarships.gov.in) with Aadhaar OTP." },
+      { step: "Select Department of Higher Education", detail: "Choose CSSS scheme and enter Class 12 roll number and college admission code." },
+      { step: "Institute Verification", detail: "College scholarship nodal officer digitally validates regular enrollment status." },
+    ],
+    portalUrl: "https://scholarships.gov.in",
+    deadline: "November 30, 2026",
+    featured: true,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-pmkvy-9",
+    name: "Pradhan Mantri Kaushal Vikas Yojana (PMKVY 4.0 - Skill India)",
+    ministry: "Ministry of Skill Development & Entrepreneurship",
+    category: "Skill & Jobs",
+    benefitAmount: "100% Free Industry 4.0 Technical Training + ₹8,000 Cash Reward & Govt Certificate",
+    disabilityCriteria: "None required — Open to all youth, college students, and job seekers",
+    incomeLimit: "No family income ceiling",
+    description: "India's flagship skilling initiative providing high-demand training in AI, Machine Learning, Cloud Computing, Cybersecurity, Robotics, and Advanced Manufacturing with guaranteed placement assistance.",
+    requiredDocuments: ["Aadhaar Card", "Bank Account Passbook", "Education Qualification Marksheet (10th/12th/Diploma/Degree)"],
+    applicationSteps: [
+      { step: "Find Nearest Training Center", detail: "Locate authorized PMKVY training center on skillindia.gov.in or pmkvyofficial.org." },
+      { step: "Enroll in Industry Course", detail: "Choose modern tech or vocational trade and complete free hands-on training batch." },
+      { step: "Assessment & Certification", detail: "Pass government assessment to receive NSDC certification and stipend reward." },
+    ],
+    portalUrl: "https://www.pmkvyofficial.org",
+    deadline: "Open All Year",
+    featured: true,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-sisfs-10",
+    name: "Startup India Seed Fund Scheme (SISFS)",
+    ministry: "Department for Promotion of Industry and Internal Trade (DPIIT)",
+    category: "Financial Aid",
+    benefitAmount: "Grants up to ₹20 Lakhs for Prototype + Up to ₹50 Lakhs for Commercialization",
+    disabilityCriteria: "None required — Open to all Indian student innovators and startup teams",
+    incomeLimit: "No personal income limit",
+    description: "Provides financial assistance to early-stage student startups and entrepreneurs for proof of concept, prototype development, product trials, market-entry, and commercialization through approved incubators.",
+    requiredDocuments: ["DPIIT Startup Recognition Certificate", "Pitch Deck & Prototype Video", "Company/LLP Registration Proof", "Incubator Recommendation"],
+    applicationSteps: [
+      { step: "DPIIT Registration", detail: "Register your startup idea for free on startupindia.gov.in to obtain DPIIT recognition." },
+      { step: "Select Incubator", detail: "Apply to approved incubators across India on seedfund.startupindia.gov.in." },
+      { step: "Pitch & Funding", detail: "Present to Seed Management Committee to receive milestones-based tranches." },
+    ],
+    portalUrl: "https://seedfund.startupindia.gov.in",
+    deadline: "Rolling Quarterly Batches",
+    featured: true,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-aim-11",
+    name: "Atal Innovation Mission (AIM) & Community Innovation Fellowships",
+    ministry: "NITI Aayog, Government of India",
+    category: "Skill & Jobs",
+    benefitAmount: "₹40,000 / month Fellowship Stipend + Direct Mentorship by Top Scientists",
+    disabilityCriteria: "None required — Open to all graduates, innovators, and researchers",
+    incomeLimit: "Open to all Indian citizens",
+    description: "Promotes a culture of innovation and entrepreneurship across India. Selected young fellows receive access to modern fab-labs, rapid prototyping tools, and ₹40,000 monthly stipend to solve community challenges.",
+    requiredDocuments: ["Degree Certificate / Final Year Marksheet", "Aadhaar Card", "Innovative Project Proposal / Resume"],
+    applicationSteps: [
+      { step: "Submit Online Proposal", detail: "Submit innovative technical or social problem-solving proposal on aim.gov.in." },
+      { step: "Expert Panel Interview", detail: "Shortlisted candidates present project architecture to NITI Aayog committee." },
+      { step: "Incubator Placement", detail: "Begin 1-year funded fellowship at an Atal Community Innovation Centre (ACIC)." },
+    ],
+    portalUrl: "https://aim.gov.in",
+    deadline: "September 30, 2026",
+    featured: false,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-ayushman-12",
+    name: "Ayushman Bharat PM-JAY (Universal Health Assurance Coverage)",
+    ministry: "National Health Authority & Ministry of Health and Family Welfare",
+    category: "Healthcare",
+    benefitAmount: "₹5,00,000 / year Cashless Hospitalization Treatment per Family",
+    disabilityCriteria: "None required — Open to all eligible general households & families",
+    incomeLimit: "As per National Health Authority SECC & State Ration Card guidelines",
+    description: "The world's largest health assurance scheme providing ₹5 Lakh cashless coverage per family annually for secondary and tertiary care across 27,000+ empanelled government and private hospitals nationwide.",
+    requiredDocuments: ["Aadhaar Card", "Ration Card / Family Samagra ID", "Active Mobile Number"],
+    applicationSteps: [
+      { step: "Check Family Status", detail: "Verify family inclusion on beneficiary.nha.gov.in with Aadhaar or Ration Card." },
+      { step: "Generate Ayushman Card", detail: "Download digital Ayushman Card instantly with Aadhaar e-KYC." },
+      { step: "Avail Cashless Care", detail: "Present Ayushman card at Arogya Mitra desk in any empanelled hospital." },
+    ],
+    portalUrl: "https://beneficiary.nha.gov.in",
+    deadline: "Valid Throughout Year",
+    featured: false,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-mudra-13",
+    name: "Pradhan Mantri Mudra Yojana (PMMY - Shishu / Kishore / Tarun)",
+    ministry: "Department of Financial Services, Ministry of Finance",
+    category: "Financial Aid",
+    benefitAmount: "Collateral-Free Business Loans from ₹50,000 up to ₹10,00,000",
+    disabilityCriteria: "None required — Open to all Indian citizens, graduates & micro-entrepreneurs",
+    incomeLimit: "Open to all general citizens",
+    description: "Refinancing and collateral-free loan facility to empower students, small business owners, and freelancers to establish technical setups, manufacturing, service enterprises, or freelance studios.",
+    requiredDocuments: ["Identity Proof (Aadhaar/PAN)", "Proof of Business Address / Trade Proposal", "Last 6 Months Bank Statement"],
+    applicationSteps: [
+      { step: "Apply on Udyamimitra", detail: "Log in to udyamimitra.in and fill out loan application form." },
+      { step: "Choose Lending Partner", detail: "Select nearest public sector bank, private bank, or NBFC." },
+      { step: "Loan Sanction", detail: "Receive collateral-free disbursement with nominal processing fee." },
+    ],
+    portalUrl: "https://www.mudra.org.in",
+    deadline: "Open All Year",
+    featured: false,
+    targetAudience: "general",
+  },
+  {
+    id: "scheme-general-naps-14",
+    name: "National Apprenticeship Promotion Scheme (NAPS)",
+    ministry: "Ministry of Skill Development & Entrepreneurship",
+    category: "Skill & Jobs",
+    benefitAmount: "Govt Reimburses 25% of Stipend (Up to ₹1,500/mo) + Full Corporate Monthly Salary",
+    disabilityCriteria: "None required — Open to all technical, ITI, diploma, and general degree holders",
+    incomeLimit: "No income restrictions",
+    description: "Connects young college and diploma graduates with top enterprises (Tata, Infosys, Reliance, Mahindra, L&T) for paid on-the-job apprenticeship training and direct corporate hiring pathways.",
+    requiredDocuments: ["Diploma / Degree Passing Certificate", "Class 10th & 12th Marksheet", "Aadhaar Card", "Resume"],
+    applicationSteps: [
+      { step: "Register Candidate Profile", detail: "Create candidate account on apprenticeshipindia.gov.in." },
+      { step: "Search Apprenticeship Vacancies", detail: "Filter openings by location, engineering trade, or corporate company." },
+      { step: "Sign Apprenticeship Contract", detail: "Receive government-certified on-the-job training with direct monthly bank stipend." },
+    ],
+    portalUrl: "https://www.apprenticeshipindia.gov.in",
+    deadline: "Active Daily Postings",
+    featured: true,
+    targetAudience: "general",
   },
 ];
 
@@ -196,7 +368,17 @@ export const SchemesPage = () => {
   const [schemes, setSchemes] = useState<Scheme[]>(VERIFIED_SCHEMES);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedAudience, setSelectedAudience] = useState<SchemeAudience>("All");
   const [selectedSchemeForSteps, setSelectedSchemeForSteps] = useState<Scheme | null>(null);
+
+  const generalCount = useMemo(
+    () => schemes.filter((s) => s.targetAudience === "general" || s.targetAudience === "all").length,
+    [schemes]
+  );
+  const pwdCount = useMemo(
+    () => schemes.filter((s) => s.targetAudience === "pwd").length,
+    [schemes]
+  );
 
   // Wizard State
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -214,9 +396,17 @@ export const SchemesPage = () => {
   // Calculate quick personalized eligibility score
   const calculateQuickEligibility = (scheme: Scheme): { score: number; status: string } => {
     let score = 70; // Base score
-    if (profile?.disability_type) score += 15;
-    if (profile?.education_level && scheme.category === "Scholarship") score += 10;
-    if (scheme.featured) score += 4;
+    if (scheme.targetAudience === "general" || scheme.targetAudience === "all") {
+      score = 86;
+      if (profile?.education_level && (scheme.category === "Scholarship" || scheme.category === "Skill & Jobs")) {
+        score += 8;
+      }
+      if (scheme.featured) score += 4;
+    } else {
+      if (profile?.disability_type) score += 15;
+      if (profile?.education_level && scheme.category === "Scholarship") score += 10;
+      if (scheme.featured) score += 4;
+    }
     const finalScore = Math.min(99, score);
     const status = finalScore >= 85 ? "High Eligibility" : "Likely Eligible";
     return { score: finalScore, status };
@@ -225,9 +415,15 @@ export const SchemesPage = () => {
   // Run 3-Step Wizard Calculation
   const handleCalculateWizard = () => {
     let score = 55;
-    if (wizardData.disabilityPct !== "Below 40%") score += 25;
-    if (wizardData.income === "Below ₹2.5 Lakh" || wizardData.income === "Below ₹1 Lakh") score += 15;
-    if (wizardData.hasUDID) score += 5;
+    if (wizardData.disabilityPct === "No Disability (General Citizen)") {
+      score = 88;
+      if (wizardData.income === "Below ₹2.5 Lakh" || wizardData.income === "Below ₹1 Lakh") score += 8;
+      if (wizardData.hasIncomeCert) score += 3;
+    } else {
+      if (wizardData.disabilityPct !== "Below 40%") score += 25;
+      if (wizardData.income === "Below ₹2.5 Lakh" || wizardData.income === "Below ₹1 Lakh") score += 15;
+      if (wizardData.hasUDID) score += 5;
+    }
     setWizardScore(Math.min(99, score));
     setWizardStep(4);
     toast.success("AI Eligibility Verification complete!");
@@ -255,9 +451,15 @@ export const SchemesPage = () => {
 
       const matchCategory = selectedCategory === "All" || s.category === selectedCategory;
 
-      return matchSearch && matchCategory;
+      const matchAudience =
+        selectedAudience === "All" ||
+        (selectedAudience === "General"
+          ? s.targetAudience === "general" || s.targetAudience === "all"
+          : s.targetAudience === "pwd");
+
+      return matchSearch && matchCategory && matchAudience;
     });
-  }, [schemes, search, selectedCategory]);
+  }, [schemes, search, selectedCategory, selectedAudience]);
 
   return (
     <DashboardLayout>
@@ -279,65 +481,168 @@ export const SchemesPage = () => {
                   Scheme Eligibility & Welfare Navigator 🏛️
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
-                  Discover, pre-screen, and apply for central and state government scholarships, free assistive devices (ADIP), coaching grants, and financial subsidies.
+                  Discover, pre-screen, and apply for national welfare initiatives — including schemes for normal citizens & students, and specialized Divyangjan welfare programs.
                 </p>
               </div>
 
-              {/* Wizard Trigger Button */}
-              <Button
-                onClick={() => {
-                  setWizardStep(1);
-                  setWizardScore(null);
-                  setWizardOpen(true);
-                }}
-                className="h-10 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold px-4 text-xs shadow-sm transition-all active:scale-95 gap-2 shrink-0"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>Check My Eligibility (3 Steps)</span>
-              </Button>
+              {/* Action Buttons: Normal People Schemes + Wizard Trigger */}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <Button
+                  onClick={() => {
+                    const next = selectedAudience === "General" ? "All" : "General";
+                    setSelectedAudience(next);
+                    if (next === "General") {
+                      toast.info("Showing government schemes for normal citizens & students (no disability required).");
+                    }
+                  }}
+                  className={`h-10 rounded-xl font-bold px-4 text-xs shadow-sm transition-all active:scale-95 gap-2 ${
+                    selectedAudience === "General"
+                      ? "bg-blue-600 hover:bg-blue-700 text-white ring-2 ring-blue-400"
+                      : "bg-white hover:bg-blue-50 text-blue-800 border border-blue-200"
+                  }`}
+                >
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span>{selectedAudience === "General" ? "✓ Normal People Schemes (Active)" : "👥 Normal People Schemes (8)"}</span>
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setWizardStep(1);
+                    setWizardScore(null);
+                    setWizardOpen(true);
+                  }}
+                  className="h-10 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold px-4 text-xs shadow-sm transition-all active:scale-95 gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Check My Eligibility (3 Steps)</span>
+                </Button>
+              </div>
             </div>
 
             {/* 4 Interactive Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-xs p-3.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Verified Schemes</span>
+              <div
+                onClick={() => setSelectedAudience("All")}
+                className={`rounded-2xl border p-3.5 shadow-2xs cursor-pointer transition-all ${
+                  selectedAudience === "All"
+                    ? "border-teal-500 bg-white ring-2 ring-teal-200"
+                    : "border-slate-200/80 bg-white/80 hover:bg-white"
+                }`}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Total Verified Schemes</span>
                 <p className="mt-1 font-mono text-2xl font-black text-slate-900">{schemes.length}</p>
                 <span className="text-[10px] text-teal-700 font-semibold flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3" /> Central & State Welfare
+                  <ShieldCheck className="h-3 w-3" /> Central & State Portals
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-xs p-3.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Free Assistive Aids</span>
-                <p className="mt-1 font-mono text-2xl font-black text-teal-700">100% Free</p>
-                <span className="text-[10px] text-slate-500">ADIP Certified Kits</span>
+              <div
+                onClick={() => {
+                  setSelectedAudience("General");
+                  toast.info("Filtered: Normal citizen & student schemes.");
+                }}
+                className={`rounded-2xl border p-3.5 shadow-2xs cursor-pointer transition-all ${
+                  selectedAudience === "General"
+                    ? "border-blue-500 bg-blue-50/50 ring-2 ring-blue-300"
+                    : "border-slate-200/80 bg-white/80 hover:bg-white"
+                }`}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Normal People Schemes</span>
+                <p className="mt-1 font-mono text-2xl font-black text-blue-700">{generalCount}</p>
+                <span className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                  <Users className="h-3 w-3" /> Open to All Citizens
+                </span>
+              </div>
+
+              <div
+                onClick={() => {
+                  setSelectedAudience("PwD");
+                  toast.info("Filtered: Divyangjan (PwD) schemes.");
+                }}
+                className={`rounded-2xl border p-3.5 shadow-2xs cursor-pointer transition-all ${
+                  selectedAudience === "PwD"
+                    ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-300"
+                    : "border-slate-200/80 bg-white/80 hover:bg-white"
+                }`}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Divyangjan Schemes</span>
+                <p className="mt-1 font-mono text-2xl font-black text-emerald-700">{pwdCount}</p>
+                <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                  <Accessibility className="h-3 w-3" /> ADIP & Disability Welfare
+                </span>
               </div>
 
               <div className="rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-xs p-3.5 shadow-2xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Scholarship Ceiling</span>
-                <p className="mt-1 font-mono text-2xl font-black text-slate-900">₹35k/mo</p>
-                <span className="text-[10px] text-indigo-700 font-medium">UGC / DEPwD Fellowship</span>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-xs p-3.5 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">EduVault Sync</span>
-                <p className="mt-1 font-mono text-2xl font-black text-emerald-600">Active</p>
-                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                  <FolderLock className="h-3 w-3" /> Auto-Verified Docs
-                </span>
+                <p className="mt-1 font-mono text-2xl font-black text-slate-900">₹1.25L/yr</p>
+                <span className="text-[10px] text-indigo-700 font-medium">PM-YASASVI & Merit Support</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 2. Search & Category Filters */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs space-y-3">
+        {/* 2. Audience Segment Buttons, Search & Category Filters */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs space-y-3.5">
+          {/* Dedicated Segmented Audience Selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/90 border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => setSelectedAudience("All")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedAudience === "All"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Landmark className="h-3.5 w-3.5 text-teal-600" />
+                <span>All Schemes ({schemes.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAudience("General");
+                  toast.info("Filtering schemes for normal citizens (no disability required).");
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedAudience === "General"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-blue-700 hover:bg-blue-50/60"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                <span>👥 Normal People Schemes ({generalCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAudience("PwD");
+                  toast.info("Filtering schemes for Divyangjan (Persons with Disabilities).");
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedAudience === "PwD"
+                    ? "bg-teal-700 text-white shadow-xs"
+                    : "text-teal-800 hover:bg-teal-50/60"
+                }`}
+              >
+                <Accessibility className="h-3.5 w-3.5" />
+                <span>♿ Divyangjan / PwD Schemes ({pwdCount})</span>
+              </button>
+            </div>
+
+            <span className="text-xs text-slate-500 font-medium">
+              Showing <b>{filteredSchemes.length}</b> verified schemes
+            </span>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search scheme name, ministry (e.g. Social Justice, UGC), benefit, or keywords..."
+              placeholder="Search scheme name, ministry (e.g. Skill India, Education, MSME), benefit, or keywords..."
               className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-10 pr-9 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus-visible:border-teal-600"
             />
             {search && (
@@ -381,23 +686,46 @@ export const SchemesPage = () => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.04 }}
-                className="group relative flex flex-col justify-between rounded-3xl border border-slate-200/90 bg-white p-5 md:p-6 text-slate-900 shadow-sm transition-all duration-200 hover:border-teal-300 hover:shadow-md"
+                className={`group relative flex flex-col justify-between rounded-3xl border bg-white p-5 md:p-6 text-slate-900 shadow-sm transition-all duration-200 hover:shadow-md ${
+                  scheme.targetAudience === "general"
+                    ? "border-slate-200/90 hover:border-blue-300"
+                    : "border-slate-200/90 hover:border-teal-300"
+                }`}
               >
                 <div className="space-y-4">
-                  {/* Top: Ministry Badge & Eligibility Score */}
+                  {/* Top: Ministry Badge, Audience Badge & Eligibility Score */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-800">
-                        <Building className="h-3 w-3 text-teal-600" />
-                        {scheme.ministry}
-                      </span>
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-800">
+                          <Building className="h-3 w-3 text-teal-600" />
+                          {scheme.ministry}
+                        </span>
+
+                        {scheme.targetAudience === "general" ? (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-700">
+                            <Users className="h-3 w-3 text-blue-600" />
+                            Normal Citizens & Students
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            <Accessibility className="h-3 w-3 text-emerald-600" />
+                            Divyangjan (PwD)
+                          </span>
+                        )}
+                      </div>
+
                       <h2 className="text-base font-extrabold text-slate-900 leading-snug group-hover:text-teal-700 transition-colors">
                         {scheme.name}
                       </h2>
                     </div>
 
                     <div className="flex flex-col items-end shrink-0">
-                      <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-extrabold font-mono text-emerald-700 shadow-2xs">
+                      <span className={`rounded-xl border px-2.5 py-1 text-xs font-extrabold font-mono shadow-2xs ${
+                        scheme.targetAudience === "general"
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      }`}>
                         {eligibility.score}% Fit
                       </span>
                       <span className="text-[9px] font-semibold text-emerald-600 mt-0.5">
@@ -605,15 +933,28 @@ export const SchemesPage = () => {
                     <label className="text-xs font-bold text-slate-800 block">
                       1. Certified Disability Percentage:
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {["Below 40%", "40% - 60%", "61% - 80%", "Above 80%"].map((pct) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {["No Disability (General Citizen)", "Below 40%", "40% - 60%", "61% - 80%", "Above 80%"].map((pct) => (
                         <button
                           key={pct}
                           type="button"
-                          onClick={() => setWizardData({ ...wizardData, disabilityPct: pct })}
+                          onClick={() => {
+                            if (pct === "No Disability (General Citizen)") {
+                              setWizardData({
+                                ...wizardData,
+                                disabilityPct: pct,
+                                disabilityType: "General / Non-Disabled",
+                                hasUDID: false,
+                              });
+                            } else {
+                              setWizardData({ ...wizardData, disabilityPct: pct });
+                            }
+                          }}
                           className={`rounded-xl border p-3 text-xs font-semibold text-left transition-all ${
                             wizardData.disabilityPct === pct
-                              ? "border-teal-600 bg-teal-50 text-teal-900 ring-1 ring-teal-500"
+                              ? pct === "No Disability (General Citizen)"
+                                ? "border-blue-600 bg-blue-50 text-blue-900 ring-1 ring-blue-500"
+                                : "border-teal-600 bg-teal-50 text-teal-900 ring-1 ring-teal-500"
                               : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                           }`}
                         >
@@ -625,10 +966,10 @@ export const SchemesPage = () => {
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-800 block">
-                      2. Disability Category:
+                      2. Citizen / Disability Category:
                     </label>
                     <div className="grid grid-cols-2 gap-2">
-                      {["Locomotor / Physical", "Visual Impairment", "Hearing / Speech", "Multiple Disabilities"].map(
+                      {["General / Non-Disabled", "Locomotor / Physical", "Visual Impairment", "Hearing / Speech", "Multiple Disabilities"].map(
                         (cat) => (
                           <button
                             key={cat}
@@ -636,7 +977,9 @@ export const SchemesPage = () => {
                             onClick={() => setWizardData({ ...wizardData, disabilityType: cat })}
                             className={`rounded-xl border p-2.5 text-xs font-semibold text-left transition-all ${
                               wizardData.disabilityType === cat
-                                ? "border-teal-600 bg-teal-50 text-teal-900 ring-1 ring-teal-500"
+                                ? cat === "General / Non-Disabled"
+                                  ? "border-blue-600 bg-blue-50 text-blue-900 ring-1 ring-blue-500"
+                                  : "border-teal-600 bg-teal-50 text-teal-900 ring-1 ring-teal-500"
                                 : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                             }`}
                           >
@@ -733,15 +1076,17 @@ export const SchemesPage = () => {
                     <label className="text-xs font-bold text-slate-800 block">
                       5. Available Documents in your possession:
                     </label>
-                    <div
-                      onClick={() => setWizardData({ ...wizardData, hasUDID: !wizardData.hasUDID })}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 cursor-pointer hover:bg-white transition-colors"
-                    >
-                      <span className="text-xs font-semibold text-slate-800">Valid UDID Card / Disability Certificate</span>
-                      <div className={`h-5 w-5 rounded-md flex items-center justify-center ${wizardData.hasUDID ? "bg-teal-600 text-white" : "border border-slate-300"}`}>
-                        {wizardData.hasUDID && <Check className="h-3.5 w-3.5" />}
+                    {wizardData.disabilityPct !== "No Disability (General Citizen)" && (
+                      <div
+                        onClick={() => setWizardData({ ...wizardData, hasUDID: !wizardData.hasUDID })}
+                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 cursor-pointer hover:bg-white transition-colors"
+                      >
+                        <span className="text-xs font-semibold text-slate-800">Valid UDID Card / Disability Certificate</span>
+                        <div className={`h-5 w-5 rounded-md flex items-center justify-center ${wizardData.hasUDID ? "bg-teal-600 text-white" : "border border-slate-300"}`}>
+                          {wizardData.hasUDID && <Check className="h-3.5 w-3.5" />}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div
                       onClick={() => setWizardData({ ...wizardData, hasIncomeCert: !wizardData.hasIncomeCert })}
@@ -776,31 +1121,73 @@ export const SchemesPage = () => {
 
               {wizardStep === 4 && wizardScore !== null && (
                 <div className="space-y-4 text-center py-2">
-                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-teal-200 bg-teal-50">
-                    <span className="font-mono text-2xl font-black text-teal-800">{wizardScore}%</span>
+                  <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 ${
+                    wizardData.disabilityPct === "No Disability (General Citizen)"
+                      ? "border-blue-200 bg-blue-50"
+                      : "border-teal-200 bg-teal-50"
+                  }`}>
+                    <span className={`font-mono text-2xl font-black ${
+                      wizardData.disabilityPct === "No Disability (General Citizen)"
+                        ? "text-blue-800"
+                        : "text-teal-800"
+                    }`}>{wizardScore}%</span>
                   </div>
 
                   <div className="space-y-1">
                     <h3 className="text-lg font-extrabold text-slate-900">
-                      High Eligibility Confirmed! 🎉
+                      {wizardData.disabilityPct === "No Disability (General Citizen)"
+                        ? "General Citizen & Student Eligibility Confirmed! 🎉"
+                        : "High Eligibility Confirmed! 🎉"}
                     </h3>
                     <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                      Based on your disability percentage ({wizardData.disabilityPct}) and income tier ({wizardData.income}), you qualify for at least 4 national welfare programs.
+                      {wizardData.disabilityPct === "No Disability (General Citizen)"
+                        ? `As a normal citizen / student in tier (${wizardData.income}), you qualify for major central student scholarships, Skill India certifications, and youth entrepreneurial grants.`
+                        : `Based on your disability percentage (${wizardData.disabilityPct}) and income tier (${wizardData.income}), you qualify for at least 4 national welfare programs.`}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-teal-100 bg-teal-50/60 p-3.5 text-left text-xs space-y-1.5">
-                    <span className="font-bold text-teal-900 block">Top 3 Recommended Schemes:</span>
-                    <p className="text-slate-700">1. <b>ADIP Scheme:</b> Free Assistive Devices / Motorized Tricycle</p>
-                    <p className="text-slate-700">2. <b>DEPwD Post-Matric Scholarship:</b> Full Tuition + ₹1,600/mo allowance</p>
-                    <p className="text-slate-700">3. <b>Ayushman Bharat:</b> ₹5,00,000 / year cashless health cover</p>
+                  <div className={`rounded-2xl border p-3.5 text-left text-xs space-y-1.5 ${
+                    wizardData.disabilityPct === "No Disability (General Citizen)"
+                      ? "border-blue-100 bg-blue-50/60"
+                      : "border-teal-100 bg-teal-50/60"
+                  }`}>
+                    <span className={`font-bold block ${
+                      wizardData.disabilityPct === "No Disability (General Citizen)"
+                        ? "text-blue-900"
+                        : "text-teal-900"
+                    }`}>Top Recommended Schemes for You:</span>
+                    {wizardData.disabilityPct === "No Disability (General Citizen)" ? (
+                      <>
+                        <p className="text-slate-700">1. <b>PM-YASASVI Scholarship:</b> Full Tuition + Hostel & Books up to ₹1,25,000/yr</p>
+                        <p className="text-slate-700">2. <b>Central Sector Scheme (CSSS):</b> ₹12,000 - ₹20,000/yr for college students</p>
+                        <p className="text-slate-700">3. <b>PMKVY 4.0 (Skill India):</b> Free AI/Tech training + ₹8,000 Govt reward</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-slate-700">1. <b>ADIP Scheme:</b> Free Assistive Devices / Motorized Tricycle</p>
+                        <p className="text-slate-700">2. <b>DEPwD Post-Matric Scholarship:</b> Full Tuition + ₹1,600/mo allowance</p>
+                        <p className="text-slate-700">3. <b>Ayushman Bharat:</b> ₹5,00,000 / year cashless health cover</p>
+                      </>
+                    )}
                   </div>
 
                   <Button
-                    onClick={() => setWizardOpen(false)}
-                    className="w-full rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold py-2.5"
+                    onClick={() => {
+                      if (wizardData.disabilityPct === "No Disability (General Citizen)") {
+                        setSelectedAudience("General");
+                        toast.info("Filtered to Normal People Schemes.");
+                      }
+                      setWizardOpen(false);
+                    }}
+                    className={`w-full rounded-xl text-white text-xs font-semibold py-2.5 ${
+                      wizardData.disabilityPct === "No Disability (General Citizen)"
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "bg-teal-700 hover:bg-teal-800"
+                    }`}
                   >
-                    View All Qualified Schemes Below
+                    {wizardData.disabilityPct === "No Disability (General Citizen)"
+                      ? `View Normal People Schemes (${generalCount})`
+                      : "View All Qualified Schemes Below"}
                   </Button>
                 </div>
               )}

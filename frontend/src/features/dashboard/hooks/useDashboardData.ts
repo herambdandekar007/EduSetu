@@ -47,16 +47,34 @@ export function useDashboardData() {
         user?.displayName || undefined
       );
 
+      // Restore completed tasks state from localStorage
+      let savedTodayCompleted: string[] = [];
+      let savedUpcomingCompleted: string[] = [];
+      try {
+        savedTodayCompleted = JSON.parse(localStorage.getItem(`dashboard_completed_today_${activeUid}`) || "[]");
+        savedUpcomingCompleted = JSON.parse(localStorage.getItem(`dashboard_completed_upcoming_${activeUid}`) || "[]");
+      } catch {}
+
+      const mergedTodayPlan = data.todayPlan.map((t) => ({
+        ...t,
+        completed: t.completed || savedTodayCompleted.includes(t.id),
+      }));
+
+      const mergedUpcomingTasks = data.upcomingTasks.map((t) => ({
+        ...t,
+        completed: t.completed || savedUpcomingCompleted.includes(t.id),
+      }));
+
       setStudent(data.student);
       setIntelligence(data.intelligence);
       setProgress(data.progress);
-      setTodayPlan(data.todayPlan);
+      setTodayPlan(mergedTodayPlan);
       setRecommendations(data.recommendations);
       setRoadmap(data.roadmap);
       setCareer(data.career);
       setPerformance(data.performance);
       setAchievements(data.achievements);
-      setUpcomingTasks(data.upcomingTasks);
+      setUpcomingTasks(mergedUpcomingTasks);
       setNotifications(data.notifications);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -85,10 +103,10 @@ export function useDashboardData() {
     loadData();
   }, [loadData]);
 
-  // Toggle today's task completion
+  // Toggle today's task completion with persistence
   const toggleTask = (taskId: string) => {
-    setTodayPlan((prev) =>
-      prev.map((t) => {
+    setTodayPlan((prev) => {
+      const nextPlan = prev.map((t) => {
         if (t.id === taskId) {
           const nextState = !t.completed;
           if (nextState) {
@@ -97,15 +115,25 @@ export function useDashboardData() {
           return { ...t, completed: nextState };
         }
         return t;
-      })
-    );
+      });
+      try {
+        const completedIds = nextPlan.filter((t) => t.completed).map((t) => t.id);
+        localStorage.setItem(`dashboard_completed_today_${user?.uid || "guest_student"}`, JSON.stringify(completedIds));
+      } catch {}
+      return nextPlan;
+    });
   };
 
-  // Toggle upcoming task completion
+  // Toggle upcoming task completion with persistence
   const toggleUpcomingTask = (taskId: string) => {
-    setUpcomingTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
-    );
+    setUpcomingTasks((prev) => {
+      const nextTasks = prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t));
+      try {
+        const completedIds = nextTasks.filter((t) => t.completed).map((t) => t.id);
+        localStorage.setItem(`dashboard_completed_upcoming_${user?.uid || "guest_student"}`, JSON.stringify(completedIds));
+      } catch {}
+      return nextTasks;
+    });
     toast.success("Task updated");
   };
 

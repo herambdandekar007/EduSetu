@@ -57,6 +57,22 @@ export const QuickActions: React.FC = () => {
       color: "from-amber-500 to-amber-700",
       shadow: "shadow-amber-500/20",
     },
+    {
+      label: "Govt Schemes",
+      desc: "Welfare Grants",
+      icon: User,
+      url: "/schemes",
+      color: "from-blue-500 to-blue-700",
+      shadow: "shadow-blue-500/20",
+    },
+    {
+      label: "Performance",
+      desc: "Academic Analytics",
+      icon: Compass,
+      url: "/performance",
+      color: "from-rose-500 to-rose-700",
+      shadow: "shadow-rose-500/20",
+    },
   ];
 
   return (
@@ -73,7 +89,7 @@ export const QuickActions: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {ACTIONS.map((action, idx) => {
           const Icon = action.icon;
           return (
