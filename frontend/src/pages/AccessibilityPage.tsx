@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
+import { useScreenReader } from "@/hooks/useScreenReader";
 import type { ColorBlindMode, LineSpacing, LetterSpacing, TextSize } from "@/contexts/AccessibilityContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -77,24 +78,60 @@ const KEYBOARD_SHORTCUTS = [
 
 // ── Voice commands list ───────────────────────────────────────────────────────
 const VOICE_COMMANDS_LIST = [
-  { command: "go home",        action: "Go to Dashboard" },
-  { command: "go to jobs",     action: "Open Jobs page" },
-  { command: "go to schemes",  action: "Open Schemes page" },
-  { command: "go to profile",  action: "Open Profile page" },
-  { command: "go to mentors",  action: "Open Mentors page" },
-  { command: "go to community",action: "Open Community page" },
-  { command: "go back",        action: "Go to previous page" },
-  { command: "scroll down",    action: "Scroll page down" },
-  { command: "scroll up",      action: "Scroll page up" },
-  { command: "scroll top",     action: "Go to top of page" },
-  { command: "click",          action: "Click focused element" },
-  { command: "next",           action: "Focus next element" },
-  { command: "previous",       action: "Focus previous element" },
-  { command: "read page",      action: "Read page content aloud" },
-  { command: "read headings",  action: "Read all headings" },
-  { command: "stop",           action: "Stop speaking" },
-  { command: "repeat",         action: "Repeat last spoken text" },
-  { command: "help",           action: "List all commands" },
+  // Simple Disability Profiles (Enable / Disable)
+  { command: "enable visual impairment", action: "Turn on Visual Impairment mode (Contrast + XL Text)" },
+  { command: "disable visual impairment", action: "Turn off Visual Impairment mode (Restore Normal)" },
+  { command: "enable motor impairment",  action: "Turn on Motor Impairment mode (Focus + No Motion)" },
+  { command: "disable motor impairment", action: "Turn off Motor Impairment mode" },
+  { command: "enable dyslexia",          action: "Turn on Dyslexia mode (Lexend + Ruler + Spacing)" },
+  { command: "disable dyslexia",         action: "Turn off Dyslexia mode" },
+  { command: "enable epilepsy",          action: "Turn on Epilepsy safe mode (No Motion)" },
+  { command: "disable epilepsy",         action: "Turn off Epilepsy mode" },
+
+  // Simple Accessibility Tools (Enable / Disable)
+  { command: "enable high contrast",     action: "Turn on High Contrast display" },
+  { command: "disable high contrast",    action: "Turn off High Contrast display" },
+  { command: "enable large text",        action: "Set text size to Large (112%)" },
+  { command: "enable extra large text",  action: "Set text size to Extra Large (125%)" },
+  { command: "disable large text",       action: "Reset text size to Normal (100%)" },
+  { command: "enable dyslexia font",     action: "Apply Lexend Dyslexia font" },
+  { command: "disable dyslexia font",    action: "Restore standard UI font" },
+  { command: "disable animations",       action: "Pause all animations and motion" },
+  { command: "enable animations",        action: "Restore animations and motion" },
+  { command: "enable reading guide",     action: "Turn on reading ruler" },
+  { command: "disable reading guide",    action: "Turn off reading ruler" },
+  { command: "enable focus indicators",  action: "Turn on enhanced focus rings" },
+  { command: "disable focus indicators", action: "Turn off focus rings" },
+  { command: "enable relaxed spacing",   action: "Relaxed line spacing (1.9×)" },
+  { command: "enable loose spacing",     action: "Loose line spacing (2.4×)" },
+  { command: "enable wide letters",      action: "Expand letter spacing" },
+  { command: "enable deuteranopia",      action: "Green color-blind filter" },
+  { command: "enable protanopia",        action: "Red color-blind filter" },
+  { command: "enable tritanopia",        action: "Blue color-blind filter" },
+  { command: "enable grayscale",         action: "Monochrome grayscale mode" },
+  { command: "disable color blind",      action: "Restore standard color vision" },
+
+  // Navigation & Control
+  { command: "go home",                  action: "Open Dashboard" },
+  { command: "go to jobs",               action: "Open Jobs page" },
+  { command: "go to schemes",            action: "Open Schemes page" },
+  { command: "go to learn",              action: "Open Learn Hub" },
+  { command: "go to eduspeak",           action: "Open EduSpeak Lab" },
+  { command: "go to eduvault",           action: "Open EduVault credentials" },
+  { command: "go to edumentor",          action: "Open EduMentor AI Tutor" },
+  { command: "go to accessibility",      action: "Open Accessibility Tools" },
+  { command: "go back",                  action: "Go to previous page" },
+  { command: "click",                    action: "Click focused element" },
+  { command: "next",                     action: "Focus next element (or Tab)" },
+  { command: "previous",                 action: "Focus previous element" },
+  { command: "scroll down",              action: "Scroll page down" },
+  { command: "scroll up",                action: "Scroll page up" },
+  { command: "read page",                action: "Read page content aloud" },
+  { command: "stop",                     action: "Stop speech output" },
+  { command: "speak faster",             action: "Increase voice speed" },
+  { command: "speak slower",             action: "Decrease voice speed" },
+  { command: "reset accessibility",      action: "Reset all tools to default" },
+  { command: "help",                     action: "Announce all command categories" },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -117,192 +154,6 @@ const ToggleRow = ({
     <Switch checked={checked} onCheckedChange={onCheckedChange} />
   </div>
 );
-
-// ─── Screen Reader Hook (inline) ──────────────────────────────────────────────
-const useScreenReader = () => {
-  const [isActive, setIsActive]       = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [lastSpoken, setLastSpoken]   = useState("");
-  const [transcript, setTranscript]   = useState("");
-  const navigate = useNavigate();
-  const recognitionRef   = useRef<any>(null);
-  const currentFocusRef  = useRef<Element | null>(null);
-  const synthRef         = useRef(window.speechSynthesis);
-  const lastSpokenRef    = useRef("");
-
-  // ── Speak ──────────────────────────────────────────────────────────────
-  const speak = useCallback((text: string, priority = false) => {
-    if (!text) return;
-    if (priority) synthRef.current.cancel();
-    const utt   = new SpeechSynthesisUtterance(text);
-    utt.lang    = "en-IN";
-    utt.rate    = 0.95;
-    utt.pitch   = 1.0;
-    utt.volume  = 1.0;
-    synthRef.current.speak(utt);
-    setLastSpoken(text);
-    lastSpokenRef.current = text;
-  }, []);
-
-  // ── Get readable label ─────────────────────────────────────────────────
-  const getLabel = useCallback((el: Element): string => {
-    if (!el) return "";
-    const aria  = el.getAttribute("aria-label");
-    const ph    = el.getAttribute("placeholder");
-    const alt   = el.getAttribute("alt");
-    const text  = (el as HTMLElement).innerText?.trim().slice(0, 100);
-    const tag   = el.tagName.toLowerCase();
-    const type  = el.getAttribute("type");
-    const id    = el.getAttribute("id");
-    const lbl   = id ? (document.querySelector(`label[for="${id}"]`) as HTMLElement)?.innerText?.trim() : "";
-    let label   = aria || lbl || text || ph || alt || "";
-
-    if (tag === "button" || el.getAttribute("role") === "button") label = `Button: ${label}`;
-    else if (tag === "a")         label = `Link: ${label}`;
-    else if (tag === "input") {
-      if (type === "checkbox")    label = `Checkbox ${(el as HTMLInputElement).checked ? "checked" : "unchecked"}: ${label}`;
-      else if (type === "radio")  label = `Radio: ${label}`;
-      else                        label = `Input ${label}: ${type || "text"}`;
-    } else if (tag === "select")  label = `Dropdown ${label}: ${(el as HTMLSelectElement).value}`;
-    else if (/^h[1-6]$/.test(tag)) label = `Heading: ${label}`;
-    return label || "Element";
-  }, []);
-
-  // ── Highlight element ──────────────────────────────────────────────────
-  const highlight = useCallback((el: Element | null) => {
-    document.querySelectorAll(".sr-focus-ring").forEach(e => e.classList.remove("sr-focus-ring"));
-    if (el) {
-      el.classList.add("sr-focus-ring");
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, []);
-
-  // ── Get all focusable elements ─────────────────────────────────────────
-  const getFocusable = () => Array.from(document.querySelectorAll(
-    'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-  )) as HTMLElement[];
-
-  // ── Voice command handler ──────────────────────────────────────────────
-  const handleCommand = useCallback((cmd: string) => {
-    speak(`Command: ${cmd}`, true);
-
-    if (cmd.includes("click") || cmd.includes("press") || cmd.includes("select")) {
-      (currentFocusRef.current as HTMLElement)?.click();
-      speak("Clicked"); return;
-    }
-    if (cmd.includes("scroll down") || cmd.includes("go down")) {
-      window.scrollBy({ top: 300, behavior: "smooth" }); speak("Scrolling down"); return;
-    }
-    if (cmd.includes("scroll up") || cmd.includes("go up")) {
-      window.scrollBy({ top: -300, behavior: "smooth" }); speak("Scrolling up"); return;
-    }
-    if (cmd.includes("scroll top") || cmd.includes("top of page")) {
-      window.scrollTo({ top: 0, behavior: "smooth" }); speak("Going to top"); return;
-    }
-    if (cmd.includes("scroll bottom")) {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); speak("Going to bottom"); return;
-    }
-    if (cmd.includes("go home") || cmd.includes("home page")) { navigate("/");          speak("Going to dashboard"); return; }
-    if (cmd.includes("go back"))                               { navigate(-1);           speak("Going back"); return; }
-    if (cmd.includes("go to jobs") || cmd.includes("open jobs"))           { navigate("/jobs");      speak("Opening jobs"); return; }
-    if (cmd.includes("go to schemes") || cmd.includes("open schemes"))     { navigate("/schemes");   speak("Opening schemes"); return; }
-    if (cmd.includes("go to profile") || cmd.includes("open profile"))     { navigate("/profile");   speak("Opening profile"); return; }
-    if (cmd.includes("go to mentors") || cmd.includes("open mentors"))     { navigate("/mentors");   speak("Opening mentors"); return; }
-    if (cmd.includes("go to community") || cmd.includes("open community")) { navigate("/community"); speak("Opening community"); return; }
-    if (cmd.includes("next") || cmd.includes("tab forward")) {
-      const list = getFocusable(); const idx = list.indexOf(currentFocusRef.current as HTMLElement);
-      list[idx + 1]?.focus(); speak("Next element"); return;
-    }
-    if (cmd.includes("previous") || cmd.includes("tab back")) {
-      const list = getFocusable(); const idx = list.indexOf(currentFocusRef.current as HTMLElement);
-      list[idx - 1]?.focus(); speak("Previous element"); return;
-    }
-    if (cmd.includes("read page") || cmd.includes("read all")) {
-      const t = (document.getElementById("main-content") as HTMLElement)?.innerText?.slice(0, 500) || "";
-      speak(t); return;
-    }
-    if (cmd.includes("read heading")) {
-      const h = Array.from(document.querySelectorAll("h1,h2,h3")).map(x => (x as HTMLElement).innerText).join(". ");
-      speak(h || "No headings found"); return;
-    }
-    if (cmd.includes("stop") || cmd.includes("quiet") || cmd.includes("silence")) {
-      synthRef.current.cancel(); speak("Stopped"); return;
-    }
-    if (cmd.includes("repeat") || cmd.includes("say again")) {
-      speak(lastSpokenRef.current, true); return;
-    }
-    if (cmd.includes("help") || cmd.includes("commands")) {
-      speak("Say: click, scroll down, scroll up, go home, go to jobs, go to schemes, next, previous, read page, stop, repeat"); return;
-    }
-    speak(`Not recognized: ${cmd}. Say help for commands.`);
-  }, [navigate, speak]);
-
-  // ── Setup voice recognition ────────────────────────────────────────────
-  const setupVoice = useCallback(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { speak("Voice recognition not supported in this browser"); return; }
-    const rec          = new SR();
-    rec.continuous     = true;
-    rec.lang           = "en-IN";
-    rec.interimResults = false;
-    rec.onstart  = () => setIsListening(true);
-    rec.onend    = () => { setIsListening(false); };
-    rec.onresult = (e: any) => {
-      const cmd = e.results[e.results.length - 1][0].transcript.trim().toLowerCase();
-      setTranscript(cmd);
-      handleCommand(cmd);
-    };
-    rec.onerror = () => setIsListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-  }, [handleCommand, speak]);
-
-  // ── Focus + key listeners ──────────────────────────────────────────────
-  const onFocus = useCallback((e: FocusEvent) => {
-    const el = e.target as Element; if (!el || !isActive) return;
-    currentFocusRef.current = el; highlight(el); speak(getLabel(el), true);
-  }, [isActive, speak, getLabel, highlight]);
-
-  const onKey = useCallback((e: KeyboardEvent) => {
-    if (!isActive) return;
-    if (e.key === "Enter" || e.key === " ") speak("Activated", true);
-    if (e.key === "Escape") speak("Escaped", true);
-  }, [isActive, speak]);
-
-  useEffect(() => {
-    if (isActive) { document.addEventListener("focusin", onFocus); document.addEventListener("keydown", onKey); }
-    else          { document.removeEventListener("focusin", onFocus); document.removeEventListener("keydown", onKey); }
-    return () => { document.removeEventListener("focusin", onFocus); document.removeEventListener("keydown", onKey); };
-  }, [isActive, onFocus, onKey]);
-
-  // ── Activate / Deactivate ──────────────────────────────────────────────
-  const activate = useCallback(() => {
-    // Inject focus ring style
-    if (!document.getElementById("sr-style")) {
-      const s = document.createElement("style");
-      s.id = "sr-style";
-      s.textContent = `.sr-focus-ring{outline:3px solid #00ff88!important;outline-offset:4px!important;box-shadow:0 0 0 6px rgba(0,255,136,0.25)!important;border-radius:6px!important;}`;
-      document.head.appendChild(s);
-    }
-    setIsActive(true);
-    speak("Screen reader activated. Press Tab to navigate elements. Say help for voice commands.", true);
-    setupVoice();
-    setTimeout(() => { const f = getFocusable()[0]; if (f) f.focus(); }, 1200);
-  }, [speak, setupVoice]);
-
-  const deactivate = useCallback(() => {
-    setIsActive(false);
-    synthRef.current.cancel();
-    recognitionRef.current?.stop();
-    setIsListening(false);
-    document.querySelectorAll(".sr-focus-ring").forEach(e => e.classList.remove("sr-focus-ring"));
-    speak("Screen reader deactivated", true);
-  }, [speak]);
-
-  useEffect(() => () => { synthRef.current.cancel(); recognitionRef.current?.stop(); }, []);
-
-  return { isActive, isListening, lastSpoken, transcript, activate, deactivate };
-};
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const AccessibilityPage = () => {

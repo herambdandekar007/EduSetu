@@ -199,6 +199,26 @@ export const AccessibilityProvider = ({ children }: { children: ReactNode }) => 
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
 
+  // Listen for global accessibility update events dispatched by screen reader / voice control
+  useEffect(() => {
+    const handleA11yUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<Partial<A11ySettings>>;
+      if (customEvent.detail) {
+        setSettings((prev) => ({ ...prev, ...customEvent.detail }));
+      }
+    };
+    const handleA11yReset = () => {
+      setSettings(DEFAULTS);
+    };
+
+    window.addEventListener("edusetu:a11y:update", handleA11yUpdate);
+    window.addEventListener("edusetu:a11y:reset", handleA11yReset);
+    return () => {
+      window.removeEventListener("edusetu:a11y:update", handleA11yUpdate);
+      window.removeEventListener("edusetu:a11y:reset", handleA11yReset);
+    };
+  }, []);
+
   const update = useCallback((patch: Partial<A11ySettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -232,3 +252,15 @@ export const AccessibilityProvider = ({ children }: { children: ReactNode }) => 
 };
 
 export const useAccessibility = () => useContext(A11yContext);
+
+export function dispatchA11yUpdate(patch: Partial<A11ySettings>) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("edusetu:a11y:update", { detail: patch }));
+  }
+}
+
+export function dispatchA11yReset() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("edusetu:a11y:reset"));
+  }
+}

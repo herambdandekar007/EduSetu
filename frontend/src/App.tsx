@@ -9,6 +9,7 @@ import { DashboardLanguageProvider } from "@/contexts/DashboardLanguageContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AIChatDialog from "@/components/AIChatDialog";
 import HandGestureController from "@/components/HandGestureController";
+import ScreenReader from "@/components/ScreenReader";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -68,6 +69,7 @@ const App = () => (
               </Routes>
               <AIChatDialog />
               <HandGestureController />
+              <ScreenReader />
             </BrowserRouter>
           </DashboardLanguageProvider>
         </AuthProvider>

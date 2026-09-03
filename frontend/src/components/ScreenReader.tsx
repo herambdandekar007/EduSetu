@@ -19,7 +19,7 @@ const ScreenReader = () => {
       <div
         style={{
           position: "fixed",
-          bottom: 24,
+          bottom: 96,
           right: 24,
           zIndex: 99999,
           display: "flex",

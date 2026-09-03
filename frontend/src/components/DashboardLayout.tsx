@@ -3,7 +3,6 @@ import AppSidebar from "./AppSidebar";
 import TopBar from "./TopBar";
 import ReadingGuide from "./ReadingGuide";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
-import ScreenReader from "@/components/ScreenReader";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -35,9 +34,6 @@ const DashboardLayout = ({ children, hideTopBar = false, noPadding = false }: Da
           {children}
         </main>
       </div>
-
-      {/* ✅ Added ScreenReader here */}
-      <ScreenReader />
     </div>
   );
 };

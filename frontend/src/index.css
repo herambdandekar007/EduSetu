@@ -281,7 +281,8 @@
   letter-spacing: 0.12em;
 }
 /* ── Screen Reader Focus Highlight ── */
-.sr-focus-highlight {
+.sr-focus-highlight,
+.sr-focus-ring {
   outline: 3px solid #00ff88 !important;
   outline-offset: 4px !important;
   box-shadow: 0 0 0 6px rgba(0, 255, 136, 0.3) !important;
