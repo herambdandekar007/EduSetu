@@ -275,6 +275,22 @@ export const getQuizAttempts = async (userId: string): Promise<QuizAttempt[]> =>
   return getOwnedDocs<QuizAttempt>("quizAttempts", userId);
 };
 
+function removeUndefinedFields(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedFields);
+  }
+  if (obj !== null && typeof obj === "object" && !(obj instanceof Date)) {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefinedFields(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export const saveQuizAttempt = async (
   userIdOrAttempt: string | (Omit<QuizAttempt, "id"> & { userId: string }),
   attemptObj?: Omit<QuizAttempt, "id" | "userId">
@@ -290,11 +306,12 @@ export const saveQuizAttempt = async (
     attempt = userIdOrAttempt || {};
   }
 
+  const cleanedAttempt = removeUndefinedFields(attempt);
   const coll = collection(db, "quizAttempts");
   const docRef = await addDoc(coll, {
-    ...attempt,
+    ...cleanedAttempt,
     userId: uid,
-    completedAt: attempt.completedAt || new Date().toISOString(),
+    completedAt: cleanedAttempt.completedAt || new Date().toISOString(),
   });
 
   // Update quiz attempted flag if quizId exists

@@ -158,6 +158,12 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
 
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<LearnFunctionKey>("dashboard");
+  const [extraAttempts, setExtraAttempts] = useState<QuizAttempt[]>([]);
+
+  const effectiveQuizAttempts = useMemo(() => {
+    const base = data?.quizAttempts || [];
+    return [...extraAttempts, ...base];
+  }, [data?.quizAttempts, extraAttempts]);
 
   // Drill-down states
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -201,8 +207,7 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
   const revisionQueue = useMemo(() => (data ? buildRevisionQueue(data) : []), [data]);
 
   const analysisForQuiz = (quiz: Quiz): QuizAnalysisData | null => {
-    if (!data) return null;
-    const attempt = (data.quizAttempts || []).find((a) => a.quizId === quiz.id);
+    const attempt = effectiveQuizAttempts.find((a) => a.quizId === quiz.id);
     if (!attempt) return null;
     return {
       quizId: quiz.id,
@@ -395,6 +400,7 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
                       quiz={selectedQuiz}
                       userId={user?.uid || "guest"}
                       onComplete={(savedAttempt) => {
+                        setExtraAttempts((prev) => [savedAttempt, ...prev]);
                         if (selfData) {
                           setSelfData({
                             ...selfData,
@@ -415,8 +421,8 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {/* 5. Quiz Analysis */}
         {activeTab === "quiz-analysis" && (
           <div className="space-y-6">
-            {data.quizAttempts.length > 0 ? (
-              data.quizAttempts.map((attempt) => {
+            {effectiveQuizAttempts.length > 0 ? (
+              effectiveQuizAttempts.map((attempt) => {
                 const analysis: QuizAnalysisData = {
                   quizId: attempt.quizId,
                   quizTitle: attempt.quizTitle || "Quiz Assessment",
@@ -599,28 +605,31 @@ function InteractiveQuizRunner({
     const answersRecord = questions.map((q, i) => {
       const isCorrect = selectedAnswers[i] === q.answerIndex;
       if (isCorrect) correctCount += 1;
-      return {
+      const rec: any = {
         question: q.question,
         selectedOption: q.options[selectedAnswers[i]] || "",
         correctOption: q.options[q.answerIndex] || "",
         isCorrect,
-        concept: quiz.subjectName,
-        mistake: !isCorrect ? `Selected "${q.options[selectedAnswers[i]]}" instead of "${q.options[q.answerIndex]}"` : undefined,
+        concept: quiz.subjectName || "General",
       };
+      if (!isCorrect) {
+        rec.mistake = `Selected "${q.options[selectedAnswers[i]]}" instead of "${q.options[q.answerIndex]}"`;
+      }
+      return rec;
     });
 
     const total = questions.length;
     const accuracy = Math.round((correctCount / total) * 100);
     const score = Math.round((correctCount / total) * 100);
     const strongConcepts = accuracy >= 60 ? [quiz.subjectName, "Core Fundamentals"] : ["Basic Principles"];
-    const weakConcepts = accuracy < 100 ? [quiz.title, "Advanced Nuances"] : [];
+    const weakConcepts = accuracy < 100 ? [quiz.title, "Advanced Concepts"] : [];
     const recommendedPractice = [
       `Review chapter notes for ${quiz.title}`,
       `Practice 5 worked examples on ${quiz.subjectName}`,
     ];
 
     const attemptPayload = {
-      userId,
+      userId: userId || "guest",
       quizId: quiz.id,
       quizTitle: quiz.title,
       score,
@@ -635,34 +644,35 @@ function InteractiveQuizRunner({
       completedAt: new Date().toISOString(),
     };
 
+    let attemptId = `att_${Date.now()}`;
     try {
-      const attemptId = await submitAssignment
-        ? await saveQuizAttempt(userId, attemptPayload as any)
-        : `att_${Date.now()}`;
-
-      const analysisData: QuizAnalysisData = {
-        quizId: quiz.id,
-        quizTitle: quiz.title,
-        score,
-        accuracy,
-        correctAnswers: correctCount,
-        wrongAnswers: total - correctCount,
-        strongConcepts,
-        weakConcepts,
-        mistakeAnalysis: answersRecord
-          .filter((a) => !a.isCorrect && a.mistake)
-          .map((a) => ({ concept: a.concept, mistake: a.mistake! })),
-        recommendedPractice,
-      };
-
-      setSavedAnalysis(analysisData);
-      setIsSubmitted(true);
-      onComplete({ id: attemptId, ...attemptPayload });
+      if (userId && userId !== "guest") {
+        attemptId = await saveQuizAttempt(userId, attemptPayload as any);
+      }
     } catch (err) {
-      console.error("Save attempt failed:", err);
+      console.warn("Firestore saveQuizAttempt note:", err);
     } finally {
       setIsSaving(false);
     }
+
+    const analysisData: QuizAnalysisData = {
+      quizId: quiz.id,
+      quizTitle: quiz.title,
+      score,
+      accuracy,
+      correctAnswers: correctCount,
+      wrongAnswers: total - correctCount,
+      strongConcepts,
+      weakConcepts,
+      mistakeAnalysis: answersRecord
+        .filter((a: any) => !a.isCorrect && a.mistake)
+        .map((a: any) => ({ concept: a.concept, mistake: a.mistake })),
+      recommendedPractice,
+    };
+
+    setSavedAnalysis(analysisData);
+    setIsSubmitted(true);
+    onComplete({ id: attemptId, ...attemptPayload });
   };
 
   if (loading) {
