@@ -8,24 +8,13 @@ import {
   Download,
   Share2,
   FileCheck,
-  History,
-  Activity,
-  Sparkles,
-  ShieldCheck,
-  ShieldAlert,
-  Calendar,
-  Building,
-  Hash,
-  Lock,
-  ExternalLink,
   Trash2,
   Copy,
   Check,
 } from "lucide-react";
-import type { VaultDocument, DocumentVersion, DocumentActivity } from "../types/eduvault.types";
+import type { VaultDocument } from "../types/eduvault.types";
 import { VERIFICATION_STATUS_CONFIG } from "../constants/categories";
-import { getDocumentVersions } from "../services/documentService";
-import { getDocumentActivities, logDocumentActivity } from "../services/activityService";
+import { logDocumentActivity } from "../services/activityService";
 import { resolveVaultFileUrl } from "../services/storageService";
 import { toast } from "sonner";
 
@@ -46,11 +35,7 @@ export const DocumentDetailModal = ({
   onVerify: (doc: VaultDocument) => void;
   onDelete: (doc: VaultDocument) => void;
 }) => {
-  const [activeTab, setActiveTab] = useState<"preview" | "metadata" | "ai" | "versions" | "audit">(
-    "preview"
-  );
-  const [versions, setVersions] = useState<DocumentVersion[]>([]);
-  const [activities, setActivities] = useState<DocumentActivity[]>([]);
+  const [activeTab, setActiveTab] = useState<"preview" | "metadata">("preview");
   const [copiedHash, setCopiedHash] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string>(document?.fileUrl || "");
 
@@ -68,10 +53,6 @@ export const DocumentDetailModal = ({
         documentName: document.documentName,
         action: "VIEW",
       });
-
-      // Load versions and audit activities
-      getDocumentVersions(document.id).then(setVersions);
-      getDocumentActivities(document.id).then(setActivities);
     }
   }, [document?.id, document?.fileUrl, document?.storagePath, open]);
 
@@ -132,21 +113,12 @@ export const DocumentDetailModal = ({
 
         {/* Tab Navigation */}
         <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="space-y-4">
-          <TabsList className="grid grid-cols-5 p-1 bg-muted/60 rounded-2xl">
+          <TabsList className="grid grid-cols-2 p-1 bg-muted/60 rounded-2xl">
             <TabsTrigger value="preview" className="rounded-xl text-xs font-semibold">
               Preview
             </TabsTrigger>
             <TabsTrigger value="metadata" className="rounded-xl text-xs font-semibold">
               Metadata
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="rounded-xl text-xs font-semibold flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-primary" /> AI Insights
-            </TabsTrigger>
-            <TabsTrigger value="versions" className="rounded-xl text-xs font-semibold">
-              Versions ({versions.length || 1})
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="rounded-xl text-xs font-semibold">
-              Audit Trail
             </TabsTrigger>
           </TabsList>
 
@@ -262,132 +234,6 @@ export const DocumentDetailModal = ({
                 </div>
               )}
             </div>
-          </TabsContent>
-
-          {/* TAB 3: AI Intelligence */}
-          <TabsContent value="ai" className="space-y-4">
-            {document.intelligence ? (
-              <div className="space-y-4">
-                {/* AI Summary */}
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-primary">
-                    <Sparkles className="h-4 w-4" /> AI Document Summary
-                  </div>
-                  <p className="text-xs text-foreground leading-relaxed">
-                    {document.intelligence.summary || "Summary generated successfully."}
-                  </p>
-                </div>
-
-                {/* Classification & Confidence */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="p-3.5 rounded-2xl bg-card/60 border border-border/70 space-y-1">
-                    <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                      AI Categorization
-                    </span>
-                    <p className="text-sm font-bold text-foreground">
-                      {document.intelligence.classification?.suggestedCategory || document.category}
-                    </p>
-                    <div className="text-[10px] text-emerald-600 font-semibold">
-                      Confidence: {Math.round((document.intelligence.classification?.confidence || 0.9) * 100)}%
-                    </div>
-                  </div>
-
-                  {/* Tamper / Fraud Risk */}
-                  <div className="p-3.5 rounded-2xl bg-card/60 border border-border/70 space-y-1">
-                    <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                      Tamper & Fraud Risk
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs font-bold">
-                        {document.intelligence.securityAnalysis?.fraudRisk || "LOW"} RISK
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      {document.intelligence.securityAnalysis?.notes || "Structure matches verified format."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Extracted Key Properties */}
-                {document.intelligence.extractedData && (
-                  <div className="p-4 rounded-2xl bg-card/60 border border-border/70 space-y-2">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Extracted Document Properties
-                    </h5>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                      {Object.entries(document.intelligence.extractedData).map(([k, v]) => (
-                        <div key={k} className="p-2 rounded-xl bg-muted/40">
-                          <div className="text-[10px] text-muted-foreground capitalize">
-                            {k.replace(/([A-Z])/g, " $1")}
-                          </div>
-                          <div className="font-semibold text-foreground truncate">
-                            {String(v || "N/A")}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center p-8 space-y-3">
-                <Sparkles className="h-12 w-12 text-primary mx-auto opacity-60" />
-                <p className="text-xs text-muted-foreground">
-                  AI Intelligence has not been processed for this document yet.
-                </p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* TAB 4: Versions */}
-          <TabsContent value="versions" className="space-y-3">
-            {versions.map((ver) => (
-              <div
-                key={ver.id}
-                className="p-3.5 rounded-2xl border border-border/70 bg-card/60 flex items-center justify-between gap-3 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
-                    v{ver.versionNumber}
-                  </div>
-                  <div>
-                    <div className="font-bold text-foreground">{ver.changeDescription || "Document Version"}</div>
-                    <div className="text-muted-foreground text-[11px]">{ver.fileName}</div>
-                  </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => onDownload(document)} className="rounded-xl gap-1">
-                  <Download className="h-3.5 w-3.5" /> Download
-                </Button>
-              </div>
-            ))}
-          </TabsContent>
-
-          {/* TAB 5: Audit Trail */}
-          <TabsContent value="audit" className="space-y-3">
-            {activities.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-6">No audit activities recorded.</p>
-            ) : (
-              activities.map((act) => {
-                const date = act.timestamp?.seconds
-                  ? new Date(act.timestamp.seconds * 1000).toLocaleString()
-                  : new Date().toLocaleString();
-                return (
-                  <div
-                    key={act.id}
-                    className="p-3 rounded-2xl border border-border/60 bg-card/40 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Activity className="h-4 w-4 text-primary shrink-0" />
-                      <div>
-                        <span className="font-bold text-foreground">{act.action}</span>
-                        <span className="text-muted-foreground text-[11px] ml-2">by You</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{date}</span>
-                  </div>
-                );
-              })
-            )}
           </TabsContent>
         </Tabs>
 
