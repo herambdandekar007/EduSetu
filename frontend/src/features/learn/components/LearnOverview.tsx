@@ -56,6 +56,10 @@ import type {
   Assignment,
   AssignedSubjectContext,
   QuizAnalysisData,
+  QuizAttempt,
+  NextBestActionItem,
+  PersonalizedLearningRecommendation,
+  Difficulty,
 } from "../types/learn.types";
 
 export type LearnFunctionKey =
@@ -263,6 +267,84 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
       });
     } catch (error) {
       console.error("Failed to submit assignment:", error);
+    }
+  };
+
+  const handleNextActionClick = (action: NextBestActionItem) => {
+    const qLower = (action.question + " " + action.actionLabel).toLowerCase();
+    if (qLower.includes("quiz")) {
+      setActiveTab("quizzes");
+      const matched = data?.quizzes.find(
+        (qz) => qz.id === action.target || action.actionLabel.toLowerCase().includes(qz.title.toLowerCase())
+      );
+      if (matched) setSelectedQuiz(matched);
+    } else if (
+      qLower.includes("assignment") ||
+      qLower.includes("submit") ||
+      qLower.includes("overdue") ||
+      qLower.includes("practice")
+    ) {
+      setActiveTab("assignments");
+      const matched = data?.assignments.find(
+        (asg) => asg.id === action.target || action.actionLabel.toLowerCase().includes(asg.topic.toLowerCase())
+      );
+      if (matched) setSelectedAssignment(matched);
+    } else if (qLower.includes("revise")) {
+      setActiveTab("revision");
+    } else {
+      setActiveTab("subjects");
+      const matched = data?.subjects.find(
+        (s) => s.id === action.target || s.name.toLowerCase().includes(action.subjectName.toLowerCase())
+      );
+      if (matched) setSelectedSubject(matched);
+    }
+  };
+
+  const handleRecommendationSelect = (kind: keyof PersonalizedLearningRecommendation, value: string) => {
+    if (kind === "recommendedQuiz") {
+      setActiveTab("quizzes");
+      const matched = data?.quizzes.find((q) => q.title.toLowerCase() === value.toLowerCase());
+      if (matched) setSelectedQuiz(matched);
+    } else if (kind === "recommendedMaterial" || kind === "recommendedVideo") {
+      setActiveTab("materials");
+    } else if (kind === "recommendedRevision") {
+      setActiveTab("revision");
+    } else if (kind === "recommendedPractice") {
+      setActiveTab("assignments");
+    } else {
+      setActiveTab("subjects");
+    }
+  };
+
+  const handleRevisionTopicQuiz = (topic: string) => {
+    setActiveTab("quizzes");
+    const matched = data?.quizzes.find(
+      (q) =>
+        q.title.toLowerCase().includes(topic.toLowerCase()) ||
+        q.chapter.toLowerCase().includes(topic.toLowerCase())
+    );
+    if (matched) setSelectedQuiz(matched);
+  };
+
+  const handleRecalibrateAssessment = async () => {
+    try {
+      const url =
+        import.meta.env.VITE_LEARN_AI_URL ||
+        (import.meta.env.VITE_AI_ASSISTANT_URL?.replace(/\/ai-assistant\/?$/, "") ?? "http://localhost:3001") +
+          "/learn-ai";
+      await fetch(`${url}/adaptive-path`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          educationLevel: "College",
+          subjects: data?.subjects || [],
+          weakTopics: data?.progress?.weakTopics || [],
+          strongTopics: data?.progress?.strongTopics || [],
+          overallProgress: data?.progress?.overallProgress || 70,
+        }),
+      });
+    } catch (e) {
+      console.warn("AI Recalibration note:", e);
     }
   };
 
@@ -475,11 +557,20 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "adaptive" && (
           <div className="space-y-6">
             {assessment ? (
-              <AdaptiveLearning assessment={assessment} />
+              <AdaptiveLearning
+                assessment={assessment}
+                onSelectConcept={() => setActiveTab("revision")}
+                onRecalibrate={handleRecalibrateAssessment}
+              />
             ) : (
               <EmptyNote>No adaptive learning data available yet.</EmptyNote>
             )}
-            {recommendation && <PersonalizedLearning recommendation={recommendation} />}
+            {recommendation && (
+              <PersonalizedLearning
+                recommendation={recommendation}
+                onSelect={handleRecommendationSelect}
+              />
+            )}
           </div>
         )}
 
@@ -487,11 +578,16 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "next-action" && (
           <div className="space-y-6">
             {nextActions.length > 0 ? (
-              <NextBestAction actions={nextActions} />
+              <NextBestAction actions={nextActions} onAct={handleNextActionClick} />
             ) : (
               <EmptyNote>You are caught up on all urgent learning actions!</EmptyNote>
             )}
-            {recommendation && <PersonalizedLearning recommendation={recommendation} />}
+            {recommendation && (
+              <PersonalizedLearning
+                recommendation={recommendation}
+                onSelect={handleRecommendationSelect}
+              />
+            )}
           </div>
         )}
 
@@ -499,7 +595,11 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "revision" && (
           <div className="space-y-4">
             {revisionQueue.length > 0 ? (
-              <PersonalizedRevision items={revisionQueue} />
+              <PersonalizedRevision
+                items={revisionQueue}
+                onRevise={(item) => console.log("Revising topic:", item.topic)}
+                onLaunchTopicQuiz={handleRevisionTopicQuiz}
+              />
             ) : (
               <EmptyNote>No revision tasks due right now. Keep up the great work!</EmptyNote>
             )}
@@ -510,7 +610,11 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "difficulty" && (
           <div className="space-y-4">
             {difficultySettings.length > 0 ? (
-              <AdaptiveDifficulty settings={difficultySettings} />
+              <AdaptiveDifficulty
+                settings={difficultySettings}
+                onChangeLevel={(subject, level) => console.log("Subject difficulty set:", subject, level)}
+                onToggleAutoAdjust={(subject, auto) => console.log("Subject auto-adjust set:", subject, auto)}
+              />
             ) : (
               <EmptyNote>No difficulty adjustments configured yet.</EmptyNote>
             )}

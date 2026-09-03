@@ -1,7 +1,7 @@
 // features/learn/services/aiLearnService.ts
 // Real AI layer for the Learn section — calls Express backend (/api/learn/* or /learn-ai/*).
 
-import type { AIMaterialToolKey } from "../types/learn.types";
+import type { AIMaterialToolKey, MaterialType } from "../types/learn.types";
 
 const BASE_URL =
   import.meta.env.VITE_LEARN_AI_URL ||
@@ -252,3 +252,27 @@ export const semanticSearch = async (
   });
   return data.results;
 };
+
+export interface GeneratedMaterial {
+  title: string;
+  subjectName: string;
+  chapter: string;
+  type: MaterialType;
+  durationOrPages: string;
+  summary: string;
+  keyConcepts: Array<{ concept: string; explanation: string }>;
+  contentMarkdown: string;
+  practiceQuestions: string[];
+  keyTakeaways: string[];
+}
+
+export const generateAIMaterial = async (params: {
+  topic: string;
+  subjectName: string;
+  chapter?: string;
+  educationLevel?: string;
+  materialType?: string;
+}): Promise<GeneratedMaterial> => {
+  return postJSON<GeneratedMaterial>("generate-material", params);
+};
+

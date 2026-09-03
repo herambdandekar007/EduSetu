@@ -81,6 +81,11 @@ export interface LearningMaterial {
   type: MaterialType;
   durationOrPages?: string;
   addedOn: string;
+  contentMarkdown?: string;
+  summary?: string;
+  keyConcepts?: Array<{ concept: string; explanation: string }>;
+  practiceQuestions?: string[];
+  keyTakeaways?: string[];
 }
 
 export type AIMaterialToolKey =
