@@ -213,7 +213,7 @@ export const SubjectManager: React.FC<Props> = ({
 
                   <Button
                     size="sm"
-                    onClick={() => navigate("/learn")}
+                    onClick={() => navigate(`/learn?tab=subjects&subjectId=${subject.id}&topic=${encodeURIComponent(subject.name)}`)}
                     className="gap-1.5 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                   >
                     <BookOpen className="h-3.5 w-3.5" /> Study in Learn

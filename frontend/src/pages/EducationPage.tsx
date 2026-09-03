@@ -90,6 +90,7 @@ import {
   getTodayStudyPlan,
   getMentorChatSessions,
   deleteMentorChat,
+  togglePlanTaskStatus,
 } from "../features/edumentor/services/mentorService";
 import type {
   StudentLearningContext,
@@ -348,6 +349,73 @@ const OverviewSection = ({ onOpenSection }: { onOpenSection: (id: SectionId) => 
   const studentName = profile?.full_name || profile?.fullName || user?.displayName || "Student";
   const eduId = profile?.edu_id || profile?.eduId || "EDU-STU-2026";
 
+  const [overviewData, setOverviewData] = useState<{
+    progressPct: number;
+    streakDays: number;
+    skillsCount: number;
+    academicLevel: string;
+  }>({
+    progressPct: 72,
+    streakDays: 7,
+    skillsCount: 12,
+    academicLevel: profile?.education_level || "Academic Track",
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+
+    async function loadOverview() {
+      try {
+        const [learn, roadmap] = await Promise.allSettled([
+          getLearnData(user.uid),
+          getUserRoadmap(user.uid),
+        ]);
+
+        if (!isMounted) return;
+
+        let progress = 72;
+        let streak = 7;
+        let skills = Array.isArray(profile?.skills) ? profile.skills.length : 12;
+
+        if (learn.status === "fulfilled" && learn.value) {
+          if (typeof learn.value.progress?.overallProgress === "number") {
+            progress = learn.value.progress.overallProgress;
+          }
+          if (typeof learn.value.progress?.streakDays === "number") {
+            streak = learn.value.progress.streakDays;
+          }
+        }
+
+        if (roadmap.status === "fulfilled" && roadmap.value) {
+          if (roadmap.value.skills?.length) {
+            skills = Math.max(skills, roadmap.value.skills.length);
+          }
+        }
+
+        const level =
+          profile?.course
+            ? `${profile.course}${profile.semester ? ` • Sem ${profile.semester}` : ""}`
+            : profile?.education_level || "Academic Track";
+
+        setOverviewData({
+          progressPct: progress,
+          streakDays: streak,
+          skillsCount: skills,
+          academicLevel: level,
+        });
+      } catch (err) {
+        console.warn("loadOverview warning:", err);
+      }
+    }
+
+    loadOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, profile]);
+
   return (
     <div className="space-y-8">
       {/* 1. Hero Welcome Header */}
@@ -391,10 +459,10 @@ const OverviewSection = ({ onOpenSection }: { onOpenSection: (id: SectionId) => 
 
         {/* 4 Hero Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mt-6">
-          <StatPill icon={<TrendingUp className="h-5 w-5" />} label="Overall Progress" value="72%" accent="blue" />
-          <StatPill icon={<Flame className="h-5 w-5" />} label="Learning Streak" value="12 Days" accent="orange" />
-          <StatPill icon={<Award className="h-5 w-5" />} label="Skills Mastered" value="18" accent="emerald" />
-          <StatPill icon={<Star className="h-5 w-5" />} label="Academic Level" value="Year 3 • Sem 6" accent="violet" />
+          <StatPill icon={<TrendingUp className="h-5 w-5" />} label="Overall Progress" value={`${overviewData.progressPct}%`} accent="blue" />
+          <StatPill icon={<Flame className="h-5 w-5" />} label="Learning Streak" value={`${overviewData.streakDays} Days`} accent="orange" />
+          <StatPill icon={<Award className="h-5 w-5" />} label="Skills Mastered" value={overviewData.skillsCount} accent="emerald" />
+          <StatPill icon={<Star className="h-5 w-5" />} label="Academic Level" value={overviewData.academicLevel} accent="violet" />
         </div>
       </div>
 
@@ -1505,11 +1573,45 @@ const ScheduleChecklist = ({ plan, onToggle }: { plan: PlanItem[]; onToggle: (id
    MAIN EDUCATION PAGE COMPONENT
 ========================================================= */
 const EducationPage = () => {
+  const { user, profile } = useAuth();
+  const [planId, setPlanId] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanItem[]>(DEFAULT_PLAN);
   const [activeSection, setActiveSection] = useState<SectionId>("overview");
 
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    getTodayStudyPlan(user.uid, profile?.edu_id || profile?.eduId)
+      .then((studyPlan) => {
+        if (!isMounted || !studyPlan?.tasks?.length) return;
+        setPlanId(studyPlan.id);
+        const mapped: PlanItem[] = studyPlan.tasks.map((t) => ({
+          id: t.id,
+          time: t.timeSlot || "Daily Goal",
+          label: `${t.taskName} — ${t.subject} (${t.estimatedMinutes}m)`,
+          done: Boolean(t.isCompleted),
+        }));
+        setPlan(mapped);
+      })
+      .catch((err) => console.warn("Could not load dynamic plan:", err));
+    return () => {
+      isMounted = false;
+    };
+  }, [user, profile]);
+
   const togglePlanItem = (id: string) => {
-    setPlan((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
+    setPlan((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const newDone = !item.done;
+          if (planId) {
+            togglePlanTaskStatus(planId, id, newDone).catch(() => {});
+          }
+          return { ...item, done: newDone };
+        }
+        return item;
+      })
+    );
   };
 
   const activeNavItem = NAV_ITEMS.find((item) => item.id === activeSection)!;
