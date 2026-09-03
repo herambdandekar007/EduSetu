@@ -115,9 +115,9 @@ export interface DocumentShare {
   accessToken: string;
   expiresAt?: string | null;
   passwordProtected: boolean;
-  passwordHash?: string;
+  passwordHash?: string | null;
   otpRequired: boolean;
-  otpCode?: string;
+  otpCode?: string | null;
   isActive: boolean;
   accessCount?: number;
   lastAccessedAt?: string;

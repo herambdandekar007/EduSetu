@@ -76,7 +76,9 @@ export const createDocumentShare = async ({
     otpCode = Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  const shareData: DocumentShare = {
+  // Build the Firestore payload explicitly — never include undefined values
+  // Firestore rejects `undefined`; use conditional spread to omit optional fields entirely
+  const firestorePayload: Record<string, any> = {
     id: shareId,
     documentId,
     documentName: documentName || "Document",
@@ -85,30 +87,43 @@ export const createDocumentShare = async ({
     recipientEmail: recipientEmail || "",
     permission,
     accessToken,
-    expiresAt,
+    expiresAt: expiresAt ?? null,
     passwordProtected,
-    passwordHash: passwordProtected ? passwordHash : undefined,
+    passwordHash: passwordProtected ? passwordHash : null,
     otpRequired: requireOtp,
-    otpCode: requireOtp ? otpCode : undefined,
+    otpCode: requireOtp ? otpCode : null,
     isActive: true,
     accessCount: 0,
     createdAt: serverTimestamp(),
   };
 
-  await setDoc(shareRef, shareData);
+  // Final safety net: strip any remaining undefined values Firestore would reject
+  Object.keys(firestorePayload).forEach((key) => {
+    if (firestorePayload[key] === undefined) {
+      firestorePayload[key] = null;
+    }
+  });
+
+  // Keep a typed in-memory copy for the return value
+  const shareData: DocumentShare = {
+    ...(firestorePayload as any),
+  };
+
+  await setDoc(shareRef, firestorePayload);
 
   // Log activity
   await logDocumentActivity({
     userId: ownerId,
     documentId,
-    documentName,
+    documentName: documentName || "Document",
     action: "SHARE",
     metadata: {
       shareId,
       permission,
-      recipientEmail,
-      expiresAt,
+      recipientEmail: recipientEmail || "",
+      expiresAt: expiresAt || null,
       passwordProtected,
+      otpRequired: requireOtp,
     },
   });
 

@@ -1,6 +1,13 @@
 import express from "express";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { chatText, chatCompletion, getProvider, VISION_MODEL } from "../lib/aiProvider.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.resolve(__dirname, "../../uploads/vault");
 
 const router = express.Router();
 
@@ -221,6 +228,134 @@ router.post("/security-check", (req, res) => {
       isTamperFree,
       timestamp: new Date().toISOString(),
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/eduvault/upload
+ * Stores document binary file in local secure vault storage
+ */
+router.post("/upload", async (req, res) => {
+  try {
+    const { userId, documentId, fileName, mimeType, fileData } = req.body;
+
+    if (!userId || !documentId || !fileName || !fileData) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required upload parameters (userId, documentId, fileName, fileData)",
+      });
+    }
+
+    // Extract base64 content
+    let buffer;
+    if (typeof fileData === "string" && fileData.includes(";base64,")) {
+      const parts = fileData.split(";base64,");
+      buffer = Buffer.from(parts[1], "base64");
+    } else if (typeof fileData === "string") {
+      buffer = Buffer.from(fileData, "base64");
+    } else {
+      buffer = Buffer.from(fileData);
+    }
+
+    // Compute cryptographic SHA-256 hash
+    const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
+
+    // Secure target path
+    const sanitizedUserId = path.basename(String(userId).trim());
+    const sanitizedDocId = path.basename(String(documentId).trim());
+    const sanitizedFileName = (fileName || "document.bin").replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    const targetDir = path.join(UPLOADS_DIR, sanitizedUserId, sanitizedDocId);
+    await fs.promises.mkdir(targetDir, { recursive: true });
+
+    const targetFilePath = path.join(targetDir, sanitizedFileName);
+    await fs.promises.writeFile(targetFilePath, buffer);
+
+    const storagePath = `eduVault/${sanitizedUserId}/${sanitizedDocId}/${sanitizedFileName}`;
+    const host = req.get("host") || "localhost:3001";
+    const protocol = req.protocol || "http";
+    const fileUrl = `${protocol}://${host}/api/eduvault/files/${encodeURIComponent(sanitizedUserId)}/${encodeURIComponent(sanitizedDocId)}/${encodeURIComponent(sanitizedFileName)}`;
+
+    return res.json({
+      success: true,
+      fileUrl,
+      storagePath,
+      fileHash,
+      fileSize: buffer.length,
+      mimeType: mimeType || "application/octet-stream",
+    });
+  } catch (error) {
+    console.error("[EduVault Upload Error]:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to save document file",
+    });
+  }
+});
+
+/**
+ * GET /api/eduvault/files/:userId/:documentId/:fileName
+ * Serves uploaded document file for inline preview and download
+ */
+router.get("/files/:userId/:documentId/:fileName", (req, res) => {
+  try {
+    const { userId, documentId, fileName } = req.params;
+    const sanitizedUserId = path.basename(userId);
+    const sanitizedDocId = path.basename(documentId);
+    const sanitizedFileName = path.basename(fileName);
+
+    const filePath = path.join(UPLOADS_DIR, sanitizedUserId, sanitizedDocId, sanitizedFileName);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, error: "Document file not found" });
+    }
+
+    const ext = path.extname(sanitizedFileName).toLowerCase();
+    const mimeTypes = {
+      ".pdf": "application/pdf",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+      ".gif": "image/gif",
+      ".svg": "image/svg+xml",
+      ".txt": "text/plain",
+      ".doc": "application/msword",
+      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+
+    const contentType = mimeTypes[ext] || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(sanitizedFileName)}"`);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error("[EduVault File Serve Error]:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/eduvault/files/:userId/:documentId/:fileName
+ * Deletes uploaded file on permanent removal
+ */
+router.delete("/files/:userId/:documentId/:fileName", async (req, res) => {
+  try {
+    const { userId, documentId, fileName } = req.params;
+    const sanitizedUserId = path.basename(userId);
+    const sanitizedDocId = path.basename(documentId);
+    const sanitizedFileName = path.basename(fileName);
+
+    const filePath = path.join(UPLOADS_DIR, sanitizedUserId, sanitizedDocId, sanitizedFileName);
+
+    if (fs.existsSync(filePath)) {
+      await fs.promises.unlink(filePath);
+    }
+
+    return res.json({ success: true, message: "File successfully purged from storage" });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }

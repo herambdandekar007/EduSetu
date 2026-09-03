@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { DOCUMENT_CATEGORIES } from "../constants/categories";
 import { uploadVaultFile } from "../services/storageService";
-import { createVaultDocument } from "../services/documentService";
+import { createVaultDocument, updateVaultDocument } from "../services/documentService";
 import { analyzeDocumentWithAI } from "../services/intelligenceService";
 import type { VaultDocument } from "../types/eduvault.types";
 import { toast } from "sonner";
@@ -192,18 +192,47 @@ export const DocumentUploadModal = ({
 
     // If camera scanned pages are used
     if (activeTab === "camera" && capturedPages.length > 0 && !fileToUpload) {
-      // Convert first or combined captured image to File
+    // BUG-09 FIX: merge ALL captured pages into one file instead of only using page 0
+    if (capturedPages.length === 1) {
+      // Single page: simple conversion
       const byteString = atob(capturedPages[0].split(",")[1]);
       const mimeString = capturedPages[0].split(",")[0].split(":")[1].split(";")[0];
       const ab = new ArrayBuffer(byteString.length);
       const ia = new Uint8Array(ab);
-      for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
-      }
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
       const blob = new Blob([ab], { type: mimeString });
-      fileToUpload = new File([blob], `${documentName.replace(/\s+/g, "_")}.jpg`, {
-        type: mimeString,
-      });
+      fileToUpload = new File([blob], `${documentName.replace(/\s+/g, "_")}.jpg`, { type: mimeString });
+    } else {
+      // Multiple pages: stitch them vertically on a canvas then export as JPEG
+      const images = await Promise.all(
+        capturedPages.map(
+          (dataUrl) =>
+            new Promise<HTMLImageElement>((res) => {
+              const img = new Image();
+              img.onload = () => res(img);
+              img.src = dataUrl;
+            })
+        )
+      );
+      const totalHeight = images.reduce((h, img) => h + img.naturalHeight, 0);
+      const maxWidth = Math.max(...images.map((img) => img.naturalWidth));
+      const canvas = document.createElement("canvas");
+      canvas.width = maxWidth;
+      canvas.height = totalHeight;
+      const ctx = canvas.getContext("2d")!;
+      let y = 0;
+      for (const img of images) {
+        ctx.drawImage(img, 0, y, img.naturalWidth, img.naturalHeight);
+        y += img.naturalHeight;
+      }
+      const mergedDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      const byteString = atob(mergedDataUrl.split(",")[1]);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+      const blob = new Blob([ab], { type: "image/jpeg" });
+      fileToUpload = new File([blob], `${documentName.replace(/\s+/g, "_")}_${capturedPages.length}pages.jpg`, { type: "image/jpeg" });
+    }
     }
 
     if (!fileToUpload) {
@@ -213,37 +242,18 @@ export const DocumentUploadModal = ({
 
     try {
       setUploading(true);
-      setProgress(10);
-      setAiStatus("Encrypting and uploading file to secure storage...");
+      setProgress(20);
+      setAiStatus("Encrypting and uploading file to secure vault...");
 
       const tempDocId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const uploadResult = await uploadVaultFile({
         userId: user.uid,
         documentId: tempDocId,
         file: fileToUpload,
-        onProgress: (p) => setProgress(Math.max(10, Math.min(80, p))),
+        onProgress: (p) => setProgress(p),
       });
 
       setProgress(85);
-
-      let aiIntelligenceResult = undefined;
-      if (runAiIntelligence) {
-        setAiStatus("Running AI Document Intelligence (OCR & Classification)...");
-        try {
-          aiIntelligenceResult = await analyzeDocumentWithAI({
-            documentName,
-            fileName: fileToUpload.name,
-            category,
-            type,
-            mimeType: uploadResult.mimeType,
-            fileSize: uploadResult.fileSize,
-          });
-        } catch (aiErr) {
-          console.warn("[EduVault] AI intelligence processing warning:", aiErr);
-        }
-      }
-
-      setProgress(95);
       setAiStatus("Saving document metadata to secure database...");
 
       const eduId = profile?.eduId || "";
@@ -272,7 +282,6 @@ export const DocumentUploadModal = ({
         tags,
         fileHash: uploadResult.fileHash,
         hashAlgorithm: "SHA-256",
-        intelligence: aiIntelligenceResult,
       });
 
       setProgress(100);
@@ -280,12 +289,33 @@ export const DocumentUploadModal = ({
       onUploadSuccess(createdDoc);
       onOpenChange(false);
 
-      // Reset form
+      // BUG-04 FIX: Run AI in background but do NOT call onUploadSuccess again.
+      // Instead silently update the document record — avoids double Firestore re-fetch.
+      if (runAiIntelligence) {
+        toast.info("AI Document Intelligence is analyzing your credential in background... ✨");
+        analyzeDocumentWithAI({
+          documentName,
+          fileName: fileToUpload.name,
+          category,
+          type,
+          mimeType: uploadResult.mimeType,
+          fileSize: uploadResult.fileSize,
+        })
+          .then(async (aiResult) => {
+            if (aiResult && user?.uid) {
+              await updateVaultDocument(createdDoc.id, user.uid, { intelligence: aiResult });
+            }
+          })
+          .catch((aiErr) => console.warn("[EduVault] Background AI intelligence notice:", aiErr));
+      }
+
+      // BUG-11 FIX: Reset all form fields including tags
       setSelectedFile(null);
       setCapturedPages([]);
       setDocumentName("");
       setDescription("");
       setDocumentNumber("");
+      setTags(["academic"]);
     } catch (err: any) {
       console.error("[EduVault Upload Error]:", err);
       toast.error(err.message || "Failed to upload document");

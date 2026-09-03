@@ -35,6 +35,7 @@ import { SecurityCenterModal } from "../components/SecurityCenterModal";
 import { VaultSettingsModal } from "../components/VaultSettingsModal";
 import { logDocumentActivity } from "../services/activityService";
 import { sendVaultNotification } from "../services/notificationService";
+import { resolveVaultFileUrl } from "../services/storageService";
 import type { VaultDocument } from "../types/eduvault.types";
 import { toast } from "sonner";
 
@@ -107,6 +108,11 @@ export const EduVaultPage = () => {
           return false;
         }
 
+        // BUG-12 FIX: Apply type filter (was missing — only category was checked)
+        if (filters.type !== "all" && doc.type !== filters.type) {
+          return false;
+        }
+
         // Status filter
         if (filters.status !== "all" && doc.verificationStatus !== filters.status) {
           return false;
@@ -163,12 +169,16 @@ export const EduVaultPage = () => {
   };
 
   const handleDownload = async (doc: VaultDocument) => {
-    if (!doc.fileUrl) return;
-
     try {
+      const resolvedUrl = await resolveVaultFileUrl(doc.fileUrl, doc.storagePath, doc.id);
+      if (!resolvedUrl && !doc.fileUrl) {
+        toast.error("File URL is not available");
+        return;
+      }
+
       // Create temporary download anchor
       const link = document.createElement("a");
-      link.href = doc.fileUrl;
+      link.href = resolvedUrl || doc.fileUrl;
       link.download = doc.fileName || `${doc.documentName}.pdf`;
       link.target = "_blank";
       document.body.appendChild(link);
@@ -331,24 +341,57 @@ export const EduVaultPage = () => {
 
             {activeTab === "recycle" && (
               <div className="space-y-4">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2">
+                  <Trash2 className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>Documents in the Recycle Bin are retained for 30 days before automatic cleanup. You can restore or permanently delete them below.</span>
+                </div>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-foreground">Recycle Bin Items</h3>
+                  <h3 className="text-lg font-bold text-foreground">Recycle Bin</h3>
                   <Badge variant="outline" className="text-xs">
                     {deletedDocuments.length} Deleted Document(s)
                   </Badge>
                 </div>
-                <DocumentListView
-                  documents={deletedDocuments}
-                  viewMode="list"
-                  onDocumentClick={handleDocumentClick}
-                  onDownloadClick={handleDownload}
-                  onShareClick={handleShareClick}
-                  onVerifyClick={() => {}}
-                  onEditClick={() => {}}
-                  onToggleFavorite={() => {}}
-                  onToggleArchive={() => {}}
-                  onDeleteClick={permanentDelete}
-                />
+                {deletedDocuments.length === 0 ? (
+                  <div className="text-center py-16 space-y-3">
+                    <Trash2 className="h-14 w-14 text-muted-foreground mx-auto opacity-30" />
+                    <p className="text-sm text-muted-foreground">The Recycle Bin is currently empty.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {deletedDocuments.map((doc) => (
+                      <div key={doc.id} className="p-3.5 rounded-2xl border border-border/70 bg-card/60 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                            <Trash2 className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-foreground truncate">{doc.documentName}</div>
+                            <div className="text-muted-foreground text-[11px] mt-0.5">
+                              {doc.category} • Deleted: {doc.deletedAt ? new Date(doc.deletedAt).toLocaleDateString() : "Recently"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* BUG-07 FIX: Restore button now present in tab (was missing) */}
+                          <button
+                            type="button"
+                            onClick={() => restore(doc)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-border text-xs font-semibold hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/30 transition-colors"
+                          >
+                            ♻️ Restore
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => permanentDelete(doc)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            🗑️ Delete Forever
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

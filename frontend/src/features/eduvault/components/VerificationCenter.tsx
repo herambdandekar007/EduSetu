@@ -219,25 +219,13 @@ export const VerificationCenter = ({
                       )}
                     </div>
 
-                    {/* Simulation button for demo testing */}
+                    {/* Verification status — pending requests show a "Waiting for institution" notice */}
                     {req.status === "PENDING" && (
                       <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSimulateVerification(req, true)}
-                          className="rounded-xl text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve (Demo)
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSimulateVerification(req, false)}
-                          className="rounded-xl text-xs text-rose-600 hover:bg-rose-500/10"
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
-                        </Button>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+                          <Clock className="h-3.5 w-3.5" />
+                          Awaiting Institution Review
+                        </div>
                       </div>
                     )}
                   </CardContent>

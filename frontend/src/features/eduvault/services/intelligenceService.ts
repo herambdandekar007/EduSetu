@@ -1,9 +1,7 @@
 import type { DocumentIntelligence } from "../types/eduvault.types";
+import { getBackendBaseUrl } from "./storageService";
 
-const BACKEND_URL =
-  (import.meta.env.VITE_AI_ASSISTANT_URL
-    ? import.meta.env.VITE_AI_ASSISTANT_URL.replace(/\/ai-assistant\/?$/, "")
-    : "http://localhost:3001") + "/api/eduvault/ai-intelligence";
+const getAiIntelligenceUrl = (): string => `${getBackendBaseUrl()}/api/eduvault/ai-intelligence`;
 
 export const analyzeDocumentWithAI = async ({
   documentName,
@@ -23,7 +21,11 @@ export const analyzeDocumentWithAI = async ({
   rawText?: string;
 }): Promise<DocumentIntelligence> => {
   try {
-    const response = await fetch(BACKEND_URL, {
+    const controller = new AbortController();
+    // BUG-02 FIX: Backend AI takes 10-15s — 6s always aborted. Raised to 25s.
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    const response = await fetch(getAiIntelligenceUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -37,7 +39,10 @@ export const analyzeDocumentWithAI = async ({
         fileSize,
         rawText,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`AI Service returned ${response.status}`);

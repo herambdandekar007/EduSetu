@@ -26,9 +26,48 @@ import { DEFAULT_STORAGE_QUOTA_BYTES } from "../constants/categories";
 
 const DOCUMENTS_COLLECTION = "documents";
 const VERSIONS_COLLECTION = "documentVersions";
+const LOCAL_VAULT_PREFIX = "eduvault_local_docs_";
+
+/* =========================================================
+   LOCAL PERSISTENCE HELPERS
+========================================================= */
+const getLocalDocs = (userId: string): VaultDocument[] => {
+  try {
+    if (typeof window === "undefined") return [];
+    const raw = localStorage.getItem(`${LOCAL_VAULT_PREFIX}${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLocalDocs = (userId: string, docs: VaultDocument[]): void => {
+  try {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(`${LOCAL_VAULT_PREFIX}${userId}`, JSON.stringify(docs));
+  } catch (e) {
+    console.warn("[EduVault] Local docs cache warning:", e);
+  }
+};
+
+const upsertLocalDoc = (userId: string, newDoc: VaultDocument): void => {
+  const docs = getLocalDocs(userId);
+  const idx = docs.findIndex((d) => d.id === newDoc.id);
+  if (idx >= 0) {
+    docs[idx] = newDoc;
+  } else {
+    docs.unshift(newDoc);
+  }
+  saveLocalDocs(userId, docs);
+};
+
+const removeLocalDoc = (userId: string, documentId: string): void => {
+  const docs = getLocalDocs(userId);
+  saveLocalDocs(userId, docs.filter((d) => d.id !== documentId));
+};
 
 /**
- * Creates a new document record in Firestore
+ * Creates a new document record in Firestore and local backup
  */
 export const createVaultDocument = async (
   documentData: Omit<VaultDocument, "id" | "createdAt" | "updatedAt">
@@ -39,13 +78,25 @@ export const createVaultDocument = async (
   const newDoc: VaultDocument = {
     ...documentData,
     id,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
-  await setDoc(docRef, newDoc);
+  // 1. Immediately store in local cache so UI is responsive and resilient
+  upsertLocalDoc(documentData.userId, newDoc);
 
-  // Record version 1
+  // 2. Persist to Firestore
+  try {
+    await setDoc(docRef, {
+      ...newDoc,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (fsErr) {
+    console.warn("[EduVault] Firestore document write warning (cached locally):", fsErr);
+  }
+
+  // 3. Record version 1
   try {
     await addDoc(collection(db, VERSIONS_COLLECTION), {
       documentId: id,
@@ -62,28 +113,36 @@ export const createVaultDocument = async (
     console.warn("[EduVault] Version 1 creation warning:", versionErr);
   }
 
-  // Audit activity
-  await logDocumentActivity({
-    userId: documentData.userId,
-    documentId: id,
-    documentName: documentData.documentName,
-    action: "UPLOAD",
-    metadata: {
-      category: documentData.category,
-      type: documentData.type,
-      fileSize: documentData.fileSize,
-      mimeType: documentData.mimeType,
-    },
-  });
+  // 4. Audit activity
+  try {
+    await logDocumentActivity({
+      userId: documentData.userId,
+      documentId: id,
+      documentName: documentData.documentName,
+      action: "UPLOAD",
+      metadata: {
+        category: documentData.category,
+        type: documentData.type,
+        fileSize: documentData.fileSize,
+        mimeType: documentData.mimeType,
+      },
+    });
+  } catch (activityErr) {
+    console.warn("[EduVault] Activity logging warning:", activityErr);
+  }
 
-  // Vault notification
-  await sendVaultNotification({
-    userId: documentData.userId,
-    type: "UPLOAD_SUCCESS",
-    title: "Document Uploaded Successfully",
-    message: `"${documentData.documentName}" has been safely encrypted and saved to your EduVault.`,
-    relatedDocumentId: id,
-  });
+  // 5. Vault notification
+  try {
+    await sendVaultNotification({
+      userId: documentData.userId,
+      type: "UPLOAD_SUCCESS",
+      title: "Document Uploaded Successfully",
+      message: `"${documentData.documentName}" has been safely encrypted and saved to your EduVault.`,
+      relatedDocumentId: id,
+    });
+  } catch (notifErr) {
+    console.warn("[EduVault] Notification warning:", notifErr);
+  }
 
   return newDoc;
 };
@@ -97,6 +156,8 @@ export const getUserDocuments = async (
 ): Promise<VaultDocument[]> => {
   if (!userId) return [];
 
+  const localDocs = getLocalDocs(userId);
+
   try {
     const q = query(
       collection(db, DOCUMENTS_COLLECTION),
@@ -104,7 +165,7 @@ export const getUserDocuments = async (
     );
 
     const snapshot = await getDocs(q);
-    const docs = snapshot.docs.map((docSnap) => {
+    const firestoreDocs = snapshot.docs.map((docSnap) => {
       const data = docSnap.data();
       return {
         id: docSnap.id,
@@ -112,14 +173,24 @@ export const getUserDocuments = async (
       } as VaultDocument;
     });
 
-    if (includeDeleted) {
-      return docs;
-    }
+    // Merge: prioritize Firestore docs, incorporate any local-only docs
+    const mergedMap = new Map<string, VaultDocument>();
+    localDocs.forEach((d) => mergedMap.set(d.id, d));
+    firestoreDocs.forEach((d) => mergedMap.set(d.id, { ...(mergedMap.get(d.id) || {}), ...d }));
 
-    return docs.filter((d) => !d.isDeleted);
+    const merged = Array.from(mergedMap.values());
+    saveLocalDocs(userId, merged);
+
+    if (includeDeleted) {
+      return merged;
+    }
+    return merged.filter((d) => !d.isDeleted);
   } catch (error) {
-    console.error("[EduVault] Failed to get user documents:", error);
-    return [];
+    console.warn("[EduVault] Firestore read failed, using cached local documents:", error);
+    if (includeDeleted) {
+      return localDocs;
+    }
+    return localDocs.filter((d) => !d.isDeleted);
   }
 };
 
@@ -135,12 +206,28 @@ export const getVaultDocumentById = async (
     const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
     const snap = await getDoc(docRef);
 
-    if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() } as VaultDocument;
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() } as VaultDocument;
+    }
   } catch (error) {
-    console.error("[EduVault] Error fetching document:", error);
-    return null;
+    console.warn("[EduVault] Error fetching document from Firestore:", error);
   }
+
+  // Fallback to local storage
+  if (typeof window !== "undefined") {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(LOCAL_VAULT_PREFIX)) {
+        try {
+          const docs: VaultDocument[] = JSON.parse(localStorage.getItem(key) || "[]");
+          const found = docs.find((d) => d.id === documentId);
+          if (found) return found;
+        } catch {}
+      }
+    }
+  }
+
+  return null;
 };
 
 /**
@@ -151,6 +238,13 @@ export const updateVaultDocument = async (
   userId: string,
   updates: Partial<VaultDocument>
 ): Promise<void> => {
+  // Update local cache
+  const localDocs = getLocalDocs(userId);
+  const updatedLocal = localDocs.map((d) =>
+    d.id === documentId ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d
+  );
+  saveLocalDocs(userId, updatedLocal);
+
   try {
     const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
     await updateDoc(docRef, {
@@ -166,8 +260,7 @@ export const updateVaultDocument = async (
       metadata: updates,
     });
   } catch (error) {
-    console.error("[EduVault] Error updating document:", error);
-    throw error;
+    console.warn("[EduVault] Error updating document in Firestore:", error);
   }
 };
 
@@ -179,11 +272,7 @@ export const toggleFavoriteDocument = async (
   userId: string,
   currentFavorite: boolean
 ): Promise<void> => {
-  const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
-  await updateDoc(docRef, {
-    isFavorite: !currentFavorite,
-    updatedAt: serverTimestamp(),
-  });
+  await updateVaultDocument(documentId, userId, { isFavorite: !currentFavorite });
 };
 
 /**
@@ -195,12 +284,8 @@ export const toggleArchiveDocument = async (
   currentArchived: boolean,
   documentName?: string
 ): Promise<void> => {
-  const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
   const nextState = !currentArchived;
-  await updateDoc(docRef, {
-    isArchived: nextState,
-    updatedAt: serverTimestamp(),
-  });
+  await updateVaultDocument(documentId, userId, { isArchived: nextState });
 
   await logDocumentActivity({
     userId,
@@ -218,12 +303,10 @@ export const softDeleteDocument = async (
   userId: string,
   documentName?: string
 ): Promise<void> => {
-  const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
-  await updateDoc(docRef, {
+  await updateVaultDocument(documentId, userId, {
     isDeleted: true,
     deletedAt: new Date().toISOString(),
     deletedBy: userId,
-    updatedAt: serverTimestamp(),
   });
 
   await logDocumentActivity({
@@ -243,12 +326,10 @@ export const restoreDocument = async (
   userId: string,
   documentName?: string
 ): Promise<void> => {
-  const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
-  await updateDoc(docRef, {
+  await updateVaultDocument(documentId, userId, {
     isDeleted: false,
     deletedAt: null,
     deletedBy: null,
-    updatedAt: serverTimestamp(),
   });
 
   await logDocumentActivity({
@@ -267,19 +348,27 @@ export const permanentDeleteDocument = async (
   documentId: string,
   userId: string,
   storagePath: string,
-  documentName?: string
+  documentName?: string,
+  fileName?: string
 ): Promise<void> => {
-  try {
-    // 1. Delete physical storage file
-    if (storagePath) {
-      await deleteVaultFile(storagePath);
-    }
+  // 1. Remove from local cache
+  removeLocalDoc(userId, documentId);
 
-    // 2. Delete Firestore doc
+  // 2. Delete physical storage file
+  if (storagePath) {
+    await deleteVaultFile(storagePath, userId, documentId, fileName);
+  }
+
+  // 3. Delete Firestore doc
+  try {
     const docRef = doc(db, DOCUMENTS_COLLECTION, documentId);
     await deleteDoc(docRef);
+  } catch (error) {
+    console.warn("[EduVault] Firestore permanent delete warning:", error);
+  }
 
-    // 3. Log activity
+  // 4. Log activity
+  try {
     await logDocumentActivity({
       userId,
       documentId,
@@ -287,9 +376,8 @@ export const permanentDeleteDocument = async (
       action: "PERMANENT_DELETE",
       metadata: { storagePath },
     });
-  } catch (error) {
-    console.error("[EduVault] Permanent delete error:", error);
-    throw error;
+  } catch (activityErr) {
+    console.warn("[EduVault] Activity logging warning:", activityErr);
   }
 };
 
@@ -353,8 +441,8 @@ export const calculateVaultStats = (
 
   // Sort recent uploads by date
   const recentUploads = [...activeDocs].sort((a, b) => {
-    const tA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt || 0).getTime();
-    const tB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt || 0).getTime();
+    const tA = (a.createdAt as any)?.seconds ? (a.createdAt as any).seconds * 1000 : new Date(a.createdAt || 0).getTime();
+    const tB = (b.createdAt as any)?.seconds ? (b.createdAt as any).seconds * 1000 : new Date(b.createdAt || 0).getTime();
     return tB - tA;
   }).slice(0, 5);
 
@@ -365,7 +453,7 @@ export const calculateVaultStats = (
     favoriteCount,
     archivedCount,
     recycleBinCount: deletedDocs.length,
-    sharedCount: 0, // dynamic from shareService
+    sharedCount: 0,
     expiringCount,
     storageUsedBytes,
     storageQuotaBytes: DEFAULT_STORAGE_QUOTA_BYTES,

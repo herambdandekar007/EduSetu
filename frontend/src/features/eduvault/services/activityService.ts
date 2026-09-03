@@ -20,7 +20,12 @@ export const logDocumentActivity = async ({
   try {
     if (!userId) return null;
 
-    const deviceInfo = typeof navigator !== "undefined" ? navigator.userAgent : "Web Browser";
+    const cleanMetadata: Record<string, any> = {};
+    if (metadata && typeof metadata === "object") {
+      Object.keys(metadata).forEach((key) => {
+        cleanMetadata[key] = metadata[key] === undefined ? null : metadata[key];
+      });
+    }
 
     const docRef = await addDoc(collection(db, ACTIVITIES_COLLECTION), {
       userId,
@@ -29,7 +34,7 @@ export const logDocumentActivity = async ({
       action,
       timestamp: serverTimestamp(),
       deviceInfo,
-      metadata,
+      metadata: cleanMetadata,
     });
 
     return docRef.id;

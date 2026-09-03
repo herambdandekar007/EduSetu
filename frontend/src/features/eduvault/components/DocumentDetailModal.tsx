@@ -26,6 +26,7 @@ import type { VaultDocument, DocumentVersion, DocumentActivity } from "../types/
 import { VERIFICATION_STATUS_CONFIG } from "../constants/categories";
 import { getDocumentVersions } from "../services/documentService";
 import { getDocumentActivities, logDocumentActivity } from "../services/activityService";
+import { resolveVaultFileUrl } from "../services/storageService";
 import { toast } from "sonner";
 
 export const DocumentDetailModal = ({
@@ -51,9 +52,15 @@ export const DocumentDetailModal = ({
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [activities, setActivities] = useState<DocumentActivity[]>([]);
   const [copiedHash, setCopiedHash] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string>(document?.fileUrl || "");
 
   useEffect(() => {
     if (document && open) {
+      // Resolve URL (checking backend / IndexedDB / blob)
+      resolveVaultFileUrl(document.fileUrl, document.storagePath, document.id).then((url) => {
+        if (url) setResolvedUrl(url);
+      });
+
       // Log VIEW action
       logDocumentActivity({
         userId: document.userId,
@@ -66,7 +73,7 @@ export const DocumentDetailModal = ({
       getDocumentVersions(document.id).then(setVersions);
       getDocumentActivities(document.id).then(setActivities);
     }
-  }, [document?.id, open]);
+  }, [document?.id, document?.fileUrl, document?.storagePath, open]);
 
   if (!document) return null;
 
@@ -146,15 +153,15 @@ export const DocumentDetailModal = ({
           {/* TAB 1: Preview */}
           <TabsContent value="preview" className="space-y-4">
             <div className="rounded-2xl border border-border/80 bg-background/50 overflow-hidden min-h-[350px] flex items-center justify-center p-4">
-              {isImage && document.fileUrl ? (
+              {isImage && (resolvedUrl || document.fileUrl) ? (
                 <img
-                  src={document.fileUrl}
+                  src={resolvedUrl || document.fileUrl}
                   alt={document.documentName}
                   className="max-h-[500px] w-auto max-w-full object-contain rounded-xl shadow-sm"
                 />
-              ) : isPdf && document.fileUrl ? (
+              ) : isPdf && (resolvedUrl || document.fileUrl) ? (
                 <iframe
-                  src={document.fileUrl}
+                  src={resolvedUrl || document.fileUrl}
                   title={document.documentName}
                   className="w-full h-[500px] rounded-xl border border-border/60"
                 />

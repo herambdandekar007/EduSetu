@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getShareByToken, recordShareAccess } from "../services/shareService";
 import { getVaultDocumentById } from "../services/documentService";
+import { resolveVaultFileUrl } from "../services/storageService";
 import type { DocumentShare, VaultDocument } from "../types/eduvault.types";
 import { VERIFICATION_STATUS_CONFIG } from "../constants/categories";
 import { toast } from "sonner";
@@ -34,6 +35,15 @@ export const SharedDocumentViewer = () => {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [unlocked, setUnlocked] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState<string>("");
+
+  useEffect(() => {
+    if (document) {
+      resolveVaultFileUrl(document.fileUrl, document.storagePath, document.id).then((url) => {
+        if (url) setResolvedUrl(url);
+      });
+    }
+  }, [document?.fileUrl, document?.storagePath, document?.id]);
 
   useEffect(() => {
     if (token) {
@@ -131,10 +141,11 @@ export const SharedDocumentViewer = () => {
   };
 
   const handleDownload = () => {
-    if (!document?.fileUrl) return;
+    const targetUrl = resolvedUrl || document?.fileUrl;
+    if (!targetUrl) return;
     const link = window.document.createElement("a");
-    link.href = document.fileUrl;
-    link.download = document.fileName || `${document.documentName}.pdf`;
+    link.href = targetUrl;
+    link.download = document?.fileName || `${document?.documentName || "document"}.pdf`;
     link.target = "_blank";
     window.document.body.appendChild(link);
     link.click();
@@ -271,16 +282,16 @@ export const SharedDocumentViewer = () => {
                 </div>
               )}
 
-              {isImage && document?.fileUrl ? (
+              {isImage && (resolvedUrl || document?.fileUrl) ? (
                 <img
-                  src={document.fileUrl}
-                  alt={document.documentName}
+                  src={resolvedUrl || document?.fileUrl}
+                  alt={document?.documentName}
                   className="max-h-[600px] w-auto max-w-full object-contain rounded-2xl shadow-sm"
                 />
-              ) : isPdf && document?.fileUrl ? (
+              ) : isPdf && (resolvedUrl || document?.fileUrl) ? (
                 <iframe
-                  src={document.fileUrl}
-                  title={document.documentName}
+                  src={resolvedUrl || document?.fileUrl}
+                  title={document?.documentName}
                   className="w-full h-[600px] rounded-2xl border border-border/60"
                 />
               ) : (
