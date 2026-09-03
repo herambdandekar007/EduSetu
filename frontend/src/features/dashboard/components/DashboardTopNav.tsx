@@ -34,7 +34,8 @@ export const DashboardTopNav: React.FC<DashboardTopNavProps> = ({ student, notif
     update({ highContrast: !settings.highContrast });
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const safeNotifications = notifications || [];
+  const unreadCount = safeNotifications.filter((n) => !n.read).length;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,10 +136,10 @@ export const DashboardTopNav: React.FC<DashboardTopNavProps> = ({ student, notif
             <PopoverContent className="w-80 rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
                 <span className="text-xs font-bold text-slate-900">Notifications & AI Alerts</span>
-                <span className="text-[10px] text-indigo-600 font-mono font-semibold">{notifications.length} alerts</span>
+                <span className="text-[10px] text-indigo-600 font-mono font-semibold">{safeNotifications.length} alerts</span>
               </div>
               <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                {notifications.map((n) => (
+                {safeNotifications.map((n) => (
                   <div
                     key={n.id}
                     className={`rounded-xl border p-2.5 transition-colors ${

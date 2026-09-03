@@ -79,6 +79,24 @@ export function useProfile() {
 
       const eduData = await getEducationProfile(profileData.eduId || "", activeUid);
       setEducationProfile(eduData);
+
+      // Compute and synchronize true initial completion score
+      const trueCompletion = calculateProfileCompletion(
+        profileData,
+        eduData,
+        skillsData,
+        languagesData,
+        portfolioData
+      );
+
+      if (profileData.profileCompletion !== trueCompletion.overallPercentage && activeUid !== "guest_student") {
+        setPersonalProfile((prev) => prev ? { ...prev, profileCompletion: trueCompletion.overallPercentage, profileCompleted: trueCompletion.isComplete } : prev);
+        await saveStudentProfile(activeUid, {
+          profileCompletion: trueCompletion.overallPercentage,
+          profileCompleted: trueCompletion.isComplete,
+        });
+        if (refreshAuthProfile) await refreshAuthProfile();
+      }
     } catch (err) {
       console.error("Profile load failed:", err);
     } finally {
@@ -94,7 +112,7 @@ export function useProfile() {
   const completionSummary: ProfileCompletionSummary = useMemo(() => {
     if (!personalProfile || !educationProfile) {
       return {
-        overallPercentage: 75,
+        overallPercentage: 0,
         isComplete: false,
         sections: [],
         recommendations: ["Complete your personal and educational profile."],
@@ -114,7 +132,22 @@ export function useProfile() {
     if (!personalProfile) return;
     setSaving(true);
     try {
-      const updated = { ...personalProfile, ...data, updatedAt: new Date().toISOString() };
+      const sanitizedData = { ...data };
+      if (sanitizedData.age !== undefined && (isNaN(Number(sanitizedData.age)) || Number(sanitizedData.age) <= 0)) {
+        delete sanitizedData.age;
+      }
+      const updated = { ...personalProfile, ...sanitizedData, updatedAt: new Date().toISOString() };
+      
+      const newSummary = calculateProfileCompletion(
+        updated,
+        educationProfile || { eduId: updated.eduId || "", userId: updated.userId || "", educationLevel: "", institutionName: "" },
+        skills,
+        languages,
+        portfolio
+      );
+      updated.profileCompletion = newSummary.overallPercentage;
+      updated.profileCompleted = newSummary.isComplete;
+
       setPersonalProfile(updated);
       const activeUid = user?.uid || "guest_student";
       await saveStudentProfile(activeUid, updated);
@@ -135,8 +168,23 @@ export function useProfile() {
     try {
       const updated = { ...educationProfile, ...data, updatedAt: new Date().toISOString() };
       setEducationProfile(updated);
+
+      const newSummary = calculateProfileCompletion(
+        personalProfile,
+        updated,
+        skills,
+        languages,
+        portfolio
+      );
+
       const activeUid = user?.uid || "guest_student";
       await saveEducationProfile(personalProfile.eduId || "", activeUid, updated);
+      await saveStudentProfile(activeUid, {
+        educationLevel: updated.educationLevel,
+        profileCompletion: newSummary.overallPercentage,
+        profileCompleted: newSummary.isComplete,
+      });
+      if (refreshAuthProfile) await refreshAuthProfile();
       toast.success("Education profile updated successfully.");
     } catch (e) {
       console.error("Failed to update education:", e);

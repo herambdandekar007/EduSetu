@@ -112,7 +112,7 @@ export interface StudentPersonalProfile {
 export interface EducationDetails {
   eduId: string;
   userId: string;
-  educationLevel: EducationLevelType;
+  educationLevel: EducationLevelType | "";
   institutionName: string;
   boardOrUniversity?: string;
   

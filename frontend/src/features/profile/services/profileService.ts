@@ -27,6 +27,35 @@ import type {
 } from "../types/profile.types";
 
 /**
+ * Recursively cleans any objects or nested objects passed to Firestore,
+ * ensuring no keys with `undefined` values exist. Preserves Firestore FieldValues,
+ * serverTimestamp(), and Dates.
+ */
+export function cleanFirestoreData<T extends Record<string, any>>(obj: T): T {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => (typeof item === "object" && item !== null ? cleanFirestoreData(item) : item)) as any;
+  }
+  const res: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) continue;
+    if (value !== null && typeof value === "object") {
+      // Check if it's a Firestore FieldValue (e.g. serverTimestamp) or Date
+      if (value instanceof Date || ("_methodName" in value) || ("toMillis" in value)) {
+        res[key] = value;
+      } else if (Array.isArray(value)) {
+        res[key] = value.map((item) => (typeof item === "object" && item !== null ? cleanFirestoreData(item) : item));
+      } else {
+        res[key] = cleanFirestoreData(value);
+      }
+    } else {
+      res[key] = value;
+    }
+  }
+  return res as T;
+}
+
+/**
  * Generates unique permanent EduID
  * Format: EDU-IND-XXXXXX
  */
@@ -48,7 +77,7 @@ export async function getStudentProfile(
   userDisplayName?: string
 ): Promise<StudentPersonalProfile> {
   if (!userId || userId === "guest_student") {
-    return createDefaultStudentProfile(userId || "guest_student", userEmail, userDisplayName);
+    return createInitialStudentProfile(userId || "guest_student", userEmail, userDisplayName);
   }
 
   try {
@@ -59,24 +88,34 @@ export async function getStudentProfile(
       const data = snap.data();
       const eduId = data.eduId || data.edu_id || generateUniqueEduId();
 
+      // Detect if user has auto-seeded legacy dummy data from earlier template
+      const isLegacyDummy =
+        (data.guardianName === "Sunil Wargade" && data.phone === "+91 98220 12345") ||
+        (data.address === "Model Colony, Shivaji Nagar" && (data.phone === "+91 98765 43210" || data.phone === "+91 98220 12345")) ||
+        (data.bio === "Computer Science student specializing in Artificial Intelligence and Web Technologies.");
+
+      const parsedAge = typeof data.age === "number" && !isNaN(data.age) && data.age > 0
+        ? data.age
+        : (typeof data.age_years === "number" && !isNaN(data.age_years) && data.age_years > 0 ? data.age_years : undefined);
+
       const normalized: StudentPersonalProfile = {
         userId,
         eduId,
-        fullName: data.fullName || data.full_name || userDisplayName || "Student",
+        fullName: isLegacyDummy ? (userDisplayName || "") : (data.fullName || data.full_name || userDisplayName || ""),
         email: data.email || userEmail || "",
-        phone: data.phone || data.mobile || "",
+        phone: isLegacyDummy ? "" : (data.phone || data.mobile || ""),
         photoURL: data.photoURL || data.avatarUrl || data.avatar_url || "",
         avatarUrl: data.avatarUrl || data.photoURL || data.avatar_url || "",
-        dateOfBirth: data.dateOfBirth || data.date_of_birth || "",
-        age: data.age ?? (data.age_years || undefined),
-        gender: data.gender || "Prefer not to say",
+        dateOfBirth: isLegacyDummy ? "" : (data.dateOfBirth || data.date_of_birth || ""),
+        age: isLegacyDummy ? undefined : parsedAge,
+        gender: isLegacyDummy ? "" : (data.gender || ""),
         nationality: data.nationality || "Indian",
-        address: data.address || "",
-        city: data.city || "",
-        state: data.state || "Maharashtra",
-        district: data.district || "",
-        pincode: data.pincode || "",
-        bio: data.bio || "",
+        address: isLegacyDummy ? "" : (data.address || ""),
+        city: isLegacyDummy ? "" : (data.city || ""),
+        state: isLegacyDummy ? "" : (data.state || ""),
+        district: isLegacyDummy ? "" : (data.district || ""),
+        pincode: isLegacyDummy ? "" : (data.pincode || ""),
+        bio: isLegacyDummy ? "" : (data.bio || ""),
         
         studentType: (data.studentType || (data.disabilityType || data.disability_type ? "pwd" : "general")) as StudentType,
         accessibilityRequired: data.accessibilityRequired ?? (Boolean(data.disabilityType || data.disability_type)),
@@ -86,29 +125,29 @@ export async function getStudentProfile(
         udidNumber: data.udidNumber || data.udid_number || "",
         assistiveTech: data.assistiveTech || data.assistive_tech || "",
         
-        guardianName: data.guardianName || data.guardian_name || "",
-        guardianPhone: data.guardianPhone || data.guardian_phone || "",
-        emergencyContactName: data.emergencyContactName || data.emergency_contact_name || "",
-        emergencyContactPhone: data.emergencyContactPhone || data.emergency_contact_phone || "",
+        guardianName: isLegacyDummy ? "" : (data.guardianName || data.guardian_name || ""),
+        guardianPhone: isLegacyDummy ? "" : (data.guardianPhone || data.guardian_phone || ""),
+        emergencyContactName: isLegacyDummy ? "" : (data.emergencyContactName || data.emergency_contact_name || ""),
+        emergencyContactPhone: isLegacyDummy ? "" : (data.emergencyContactPhone || data.emergency_contact_phone || ""),
         
-        careerGoals: data.careerGoals || data.career_goals || "",
-        preferredJobType: data.preferredJobType || data.preferred_job_type || "Full-time",
-        preferredLocations: data.preferredLocations || data.preferred_locations || [],
-        workExperienceYears: data.workExperienceYears ?? data.work_experience_years ?? 0,
+        careerGoals: isLegacyDummy ? "" : (data.careerGoals || data.career_goals || ""),
+        preferredJobType: isLegacyDummy ? "Full-time" : (data.preferredJobType || data.preferred_job_type || "Full-time"),
+        preferredLocations: isLegacyDummy ? [] : (data.preferredLocations || data.preferred_locations || []),
+        workExperienceYears: isLegacyDummy ? 0 : (data.workExperienceYears ?? data.work_experience_years ?? 0),
         linkedinUrl: data.linkedinUrl || data.linkedin_url || "",
         githubUrl: data.githubUrl || data.github_url || "",
         portfolioUrl: data.portfolioUrl || data.portfolio_url || "",
-        languages: data.languages || ["English", "Hindi"],
+        languages: isLegacyDummy ? [] : (data.languages || []),
         
-        profileCompleted: Boolean(data.profileCompleted || data.profile_completed),
-        profileCompletion: data.profileCompletion || data.profile_completion || 75,
-        verifiedStatus: Boolean(data.verifiedStatus ?? true),
+        profileCompleted: isLegacyDummy ? false : Boolean(data.profileCompleted || data.profile_completed),
+        profileCompletion: isLegacyDummy ? 0 : (typeof data.profileCompletion === "number" ? data.profileCompletion : (typeof data.profile_completion === "number" ? data.profile_completion : 0)),
+        verifiedStatus: Boolean(data.verifiedStatus || false),
         createdAt: data.createdAt || data.created_at || new Date().toISOString(),
         updatedAt: data.updatedAt || data.updated_at || new Date().toISOString(),
         
         // Mirror fields
-        full_name: data.fullName || data.full_name || userDisplayName || "Student",
-        education_level: data.educationLevel || data.education_level || "College",
+        full_name: isLegacyDummy ? (userDisplayName || "") : (data.fullName || data.full_name || userDisplayName || ""),
+        education_level: isLegacyDummy ? "" : (data.educationLevel || data.education_level || ""),
       };
 
       if (!data.eduId) {
@@ -118,16 +157,16 @@ export async function getStudentProfile(
       return normalized;
     }
 
-    const defaultProfile = createDefaultStudentProfile(userId, userEmail, userDisplayName);
-    await setDoc(profileRef, {
-      ...defaultProfile,
+    const freshProfile = createInitialStudentProfile(userId, userEmail, userDisplayName);
+    await setDoc(profileRef, cleanFirestoreData({
+      ...freshProfile,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }).catch(() => {});
-    return defaultProfile;
+    })).catch(() => {});
+    return freshProfile;
   } catch (err) {
     console.warn("getStudentProfile fallback:", err);
-    return createDefaultStudentProfile(userId, userEmail, userDisplayName);
+    return createInitialStudentProfile(userId, userEmail, userDisplayName);
   }
 }
 
@@ -162,7 +201,8 @@ export async function saveStudentProfile(
     payload.avatar_url = data.avatarUrl;
   }
 
-  await setDoc(profileRef, payload, { merge: true });
+  const sanitized = cleanFirestoreData(payload);
+  await setDoc(profileRef, sanitized, { merge: true });
 }
 
 /**
@@ -172,8 +212,8 @@ export async function getEducationProfile(
   eduId: string,
   userId?: string
 ): Promise<EducationDetails> {
-  const fallback = createDefaultEducationProfile(eduId, userId || "");
-  if (!eduId && !userId) return fallback;
+  const initial = createInitialEducationProfile(eduId, userId || "");
+  if (!eduId && !userId) return initial;
 
   try {
     const docId = userId || eduId || "default";
@@ -181,11 +221,21 @@ export async function getEducationProfile(
     const snap = await getDoc(ref);
 
     if (snap.exists()) {
+      const data = snap.data();
+      const isLegacyDummy =
+        data.institutionName === "COEP Technological University" &&
+        data.specialization === "AI & Distributed Systems" &&
+        data.cgpaOrPercentage === "9.2 CGPA";
+
+      if (isLegacyDummy) {
+        return initial;
+      }
+
       return {
-        ...fallback,
-        ...snap.data(),
-        eduId,
-        userId: userId || snap.data().userId || "",
+        ...initial,
+        ...data,
+        eduId: eduId || data.eduId || "",
+        userId: userId || data.userId || "",
       } as EducationDetails;
     }
 
@@ -193,17 +243,29 @@ export async function getEducationProfile(
       const q = query(collection(db, "educationProfiles"), where("userId", "==", userId));
       const querySnap = await getDocs(q);
       if (!querySnap.empty) {
+        const data = querySnap.docs[0].data();
+        const isLegacyDummy =
+          data.institutionName === "COEP Technological University" &&
+          data.specialization === "AI & Distributed Systems" &&
+          data.cgpaOrPercentage === "9.2 CGPA";
+
+        if (isLegacyDummy) {
+          return initial;
+        }
+
         return {
-          ...fallback,
-          ...querySnap.docs[0].data(),
+          ...initial,
+          ...data,
+          eduId: eduId || data.eduId || "",
+          userId: userId || data.userId || "",
         } as EducationDetails;
       }
     }
 
-    return fallback;
+    return initial;
   } catch (err) {
-    console.warn("getEducationProfile fallback:", err);
-    return fallback;
+    console.warn("getEducationProfile error:", err);
+    return initial;
   }
 }
 
@@ -218,12 +280,12 @@ export async function saveEducationProfile(
 
   await setDoc(
     ref,
-    {
+    cleanFirestoreData({
       ...data,
       eduId,
       userId,
       updatedAt: serverTimestamp(),
-    },
+    }),
     { merge: true }
   );
 
@@ -242,23 +304,25 @@ export async function saveEducationProfile(
 export async function getEducationTimeline(
   userId: string
 ): Promise<EducationTimelineItem[]> {
-  if (!userId || userId === "guest_student") return getDefaultTimeline(userId);
+  if (!userId || userId === "guest_student") return [];
   try {
     const q = query(collection(db, "educationTimeline"), where("userId", "==", userId));
     const snap = await getDocs(q);
     
     if (snap.empty) {
-      return getDefaultTimeline(userId);
+      return [];
     }
 
-    const items = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as EducationTimelineItem[];
+    const items = snap.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((d: any) => !(d.id === "tl_1" && d.institution === "COEP Technological University")) as EducationTimelineItem[];
 
     return items.sort((a, b) => (parseInt(b.endYear || "2030") - parseInt(a.endYear || "2030")));
   } catch (err) {
-    return getDefaultTimeline(userId);
+    return [];
   }
 }
 
@@ -271,13 +335,13 @@ export async function saveEducationTimelineItem(
 
   await setDoc(
     ref,
-    {
+    cleanFirestoreData({
       ...item,
       id: itemId,
       userId,
       updatedAt: serverTimestamp(),
       createdAt: item.createdAt || new Date().toISOString(),
-    },
+    }),
     { merge: true }
   );
 
@@ -293,21 +357,23 @@ export async function deleteEducationTimelineItem(itemId: string): Promise<void>
  * 5. Skills Management
  */
 export async function getUserSkills(userId: string): Promise<SkillItem[]> {
-  if (!userId || userId === "guest_student") return getDefaultSkills(userId);
+  if (!userId || userId === "guest_student") return [];
   try {
     const q = query(collection(db, "userSkills"), where("userId", "==", userId));
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      return getDefaultSkills(userId);
+      return [];
     }
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as SkillItem[];
+    return snap.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((s: any) => !(s.id?.startsWith("sk_") && s.name === "React & TypeScript")) as SkillItem[];
   } catch (err) {
-    return getDefaultSkills(userId);
+    return [];
   }
 }
 
@@ -320,13 +386,13 @@ export async function saveSkillItem(
 
   await setDoc(
     ref,
-    {
+    cleanFirestoreData({
       ...skill,
       id: skillId,
       userId,
       createdAt: skill.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
-    },
+    }),
     { merge: true }
   );
 
@@ -342,21 +408,23 @@ export async function deleteSkillItem(userId: string, skillId: string): Promise<
  * 6. Languages Management
  */
 export async function getUserLanguages(userId: string): Promise<UserLanguage[]> {
-  if (!userId || userId === "guest_student") return getDefaultLanguages(userId);
+  if (!userId || userId === "guest_student") return [];
   try {
     const q = query(collection(db, "userLanguages"), where("userId", "==", userId));
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      return getDefaultLanguages(userId);
+      return [];
     }
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as UserLanguage[];
+    return snap.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((l: any) => !(l.id?.startsWith("lang_") && l.name === "English" && l.reading === "Fluent")) as UserLanguage[];
   } catch (err) {
-    return getDefaultLanguages(userId);
+    return [];
   }
 }
 
@@ -369,13 +437,13 @@ export async function saveUserLanguage(
 
   await setDoc(
     ref,
-    {
+    cleanFirestoreData({
       ...language,
       id: langId,
       userId,
       createdAt: language.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
-    },
+    }),
     { merge: true }
   );
 
@@ -391,21 +459,23 @@ export async function deleteUserLanguage(langId: string): Promise<void> {
  * 7. Portfolio Management
  */
 export async function getUserPortfolio(userId: string): Promise<PortfolioItem[]> {
-  if (!userId || userId === "guest_student") return getDefaultPortfolio(userId);
+  if (!userId || userId === "guest_student") return [];
   try {
     const q = query(collection(db, "userPortfolio"), where("userId", "==", userId));
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      return getDefaultPortfolio(userId);
+      return [];
     }
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as PortfolioItem[];
+    return snap.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }))
+      .filter((p: any) => !(p.id?.startsWith("port_") && p.title?.includes("Smart Education AI"))) as PortfolioItem[];
   } catch (err) {
-    return getDefaultPortfolio(userId);
+    return [];
   }
 }
 
@@ -418,13 +488,13 @@ export async function savePortfolioItem(
 
   await setDoc(
     ref,
-    {
+    cleanFirestoreData({
       ...item,
       id: itemId,
       userId,
       createdAt: item.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
-    },
+    }),
     { merge: true }
   );
 
@@ -478,10 +548,10 @@ export async function saveAccessibilityProfile(
 ): Promise<void> {
   if (!userId || userId === "guest_student") return;
   const ref = doc(db, "profiles", userId);
-  await updateDoc(ref, {
+  await updateDoc(ref, cleanFirestoreData({
     accessibilityPreferences: settings,
     updatedAt: serverTimestamp(),
-  }).catch(() => {});
+  })).catch(() => {});
 }
 
 /**
@@ -497,82 +567,136 @@ export function calculateProfileCompletion(
   let score = 0;
   const sections = [];
 
-  // Personal Information (25%)
-  const hasBasicPersonal = Boolean(personal.fullName && personal.email && personal.phone);
-  const personalScore = hasBasicPersonal ? (personal.bio ? 25 : 20) : 10;
+  // 1. Personal Information (25% total)
+  // Evaluates actual presence of user-entered personal profile fields
+  let personalScore = 0;
+  const hasName = Boolean(personal?.fullName && personal.fullName.trim().length > 0);
+  const hasEmail = Boolean(personal?.email && personal.email.trim().length > 0);
+  const hasPhone = Boolean(personal?.phone && personal.phone.trim().length >= 7);
+  const hasLocation = Boolean(
+    (personal?.city && personal.city.trim().length > 0) ||
+    (personal?.state && personal.state.trim().length > 0) ||
+    (personal?.address && personal.address.trim().length > 0)
+  );
+  const hasBioOrGoal = Boolean(
+    (personal?.bio && personal.bio.trim().length > 5) ||
+    (personal?.careerGoals && personal.careerGoals.trim().length > 0)
+  );
+
+  if (hasName) personalScore += 5;
+  if (hasEmail) personalScore += 5;
+  if (hasPhone) personalScore += 5;
+  if (hasLocation) personalScore += 5;
+  if (hasBioOrGoal) personalScore += 5;
+
   score += personalScore;
+  const isPersonalComplete = personalScore >= 20;
   sections.push({
     title: "Personal Information",
-    completed: hasBasicPersonal && Boolean(personal.bio),
+    completed: isPersonalComplete,
     weight: 25,
     actionTab: "personal",
   });
 
-  // Education Information (25%)
-  const hasEdu = Boolean(
-    education.educationLevel &&
-      (education.institutionName || education.collegeName || education.schoolBoard)
+  // 2. Education Information (25% total)
+  // Evaluates level (10%), institution (10%), course/stream/grade (5%)
+  let eduScore = 0;
+  const hasLevel = Boolean(education?.educationLevel && education.educationLevel.trim().length > 0);
+  const hasInst = Boolean(
+    (education?.institutionName && education.institutionName.trim().length > 0) ||
+    (education?.collegeName && education.collegeName.trim().length > 0) ||
+    (education?.schoolBoard && education.schoolBoard.trim().length > 0)
   );
-  const eduScore = hasEdu ? 25 : 0;
+  const hasProgram = Boolean(
+    (education?.degree && education.degree.trim().length > 0) ||
+    (education?.course && education.course.trim().length > 0) ||
+    (education?.branch && education.branch.trim().length > 0) ||
+    (education?.schoolClass && education.schoolClass.trim().length > 0)
+  );
+
+  if (hasLevel) eduScore += 10;
+  if (hasInst) eduScore += 10;
+  if (hasProgram) eduScore += 5;
+
   score += eduScore;
+  const isEduComplete = eduScore >= 20;
   sections.push({
     title: "Education Information",
-    completed: hasEdu,
+    completed: isEduComplete,
     weight: 25,
     actionTab: "education",
   });
 
-  // Skills (20%)
-  const hasSkills = skills.length >= 3;
-  const skillsScore = hasSkills ? 20 : Math.min(15, skills.length * 6);
+  // 3. Skills (20% total)
+  // 0 skills: 0%, 1 skill: 6%, 2 skills: 12%, >= 3 skills: 20%
+  const validSkills = (skills || []).filter((s) => s && s.name && s.name.trim().length > 0);
+  let skillsScore = 0;
+  if (validSkills.length >= 3) {
+    skillsScore = 20;
+  } else if (validSkills.length > 0) {
+    skillsScore = validSkills.length * 6;
+  }
   score += skillsScore;
   sections.push({
     title: "Skills",
-    completed: hasSkills,
+    completed: validSkills.length >= 3,
     weight: 20,
     actionTab: "skills",
   });
 
-  // Languages (15%)
-  const hasLanguages = languages.length >= 1;
-  const langScore = hasLanguages ? 15 : 0;
+  // 4. Languages (15% total)
+  const validLanguages = (languages || []).filter((l) => l && l.name && l.name.trim().length > 0);
+  const langScore = validLanguages.length >= 1 ? 15 : 0;
   score += langScore;
   sections.push({
     title: "Languages",
-    completed: hasLanguages,
+    completed: validLanguages.length >= 1,
     weight: 15,
     actionTab: "languages",
   });
 
-  // Portfolio (15%)
-  const hasPortfolio = portfolio.length >= 1;
-  const portScore = hasPortfolio ? 15 : 0;
+  // 5. EduPortfolio (15% total)
+  const validPortfolio = (portfolio || []).filter((p) => p && p.title && p.title.trim().length > 0);
+  const portScore = validPortfolio.length >= 1 ? 15 : 0;
   score += portScore;
   sections.push({
     title: "EduPortfolio",
-    completed: hasPortfolio,
+    completed: validPortfolio.length >= 1,
     weight: 15,
     actionTab: "portfolio",
   });
 
-  const finalScore = Math.min(100, score);
+  const finalScore = Math.min(100, Math.round(score));
+
+  const recommendations: string[] = [];
+  if (!isPersonalComplete) {
+    if (!hasPhone) recommendations.push("Add a contact phone number.");
+    if (!hasLocation) recommendations.push("Add your city/state location.");
+    if (!hasBioOrGoal) recommendations.push("Add a brief bio or career goal.");
+  }
+  if (!isEduComplete) {
+    recommendations.push("Complete your Education Profile (select education level & institution).");
+  }
+  if (validSkills.length < 3) {
+    recommendations.push("Add at least 3 skills to demonstrate your capabilities.");
+  }
+  if (validLanguages.length === 0) {
+    recommendations.push("Add languages you speak, read, or write.");
+  }
+  if (validPortfolio.length === 0) {
+    recommendations.push("Add projects, certifications, or achievements to EduPortfolio.");
+  }
 
   return {
     overallPercentage: finalScore,
     isComplete: finalScore >= 85,
     sections,
-    recommendations: [
-      !hasEdu ? "Complete your Education Profile." : null,
-      !hasSkills ? "Add your skills to reach full profile readiness." : null,
-      !hasLanguages ? "Add your languages and proficiency levels." : null,
-      !hasPortfolio ? "Add projects or certificates to build your EduPortfolio." : null,
-      !personal.bio ? "Add a brief personal bio." : null,
-    ].filter(Boolean) as string[],
+    recommendations,
   };
 }
 
-// Defaults
-function createDefaultStudentProfile(
+// Initial Clean Profile Generators
+export function createInitialStudentProfile(
   userId: string,
   userEmail?: string,
   userDisplayName?: string
@@ -580,141 +704,65 @@ function createDefaultStudentProfile(
   return {
     userId,
     eduId: generateUniqueEduId(),
-    fullName: userDisplayName || "Aditya Wargade",
-    email: userEmail || "student@education.gov.in",
-    phone: "+91 98765 43210",
+    fullName: userDisplayName || "",
+    email: userEmail || "",
+    phone: "",
     photoURL: "",
     avatarUrl: "",
-    dateOfBirth: "2003-05-15",
-    age: 21,
-    gender: "Male",
+    dateOfBirth: "",
+    age: undefined,
+    gender: "",
     nationality: "Indian",
-    address: "Model Colony, Shivaji Nagar",
-    city: "Pune",
-    state: "Maharashtra",
-    district: "Pune",
-    pincode: "411016",
-    bio: "Computer Science student specializing in Artificial Intelligence and Web Technologies.",
+    address: "",
+    city: "",
+    state: "",
+    district: "",
+    pincode: "",
+    bio: "",
     studentType: "general",
     accessibilityRequired: false,
     disabilityType: "",
     disabilityPercentage: 0,
     udidNumber: "",
     assistiveTech: "",
-    guardianName: "Sunil Wargade",
-    guardianPhone: "+91 98220 12345",
-    emergencyContactName: "Sunil Wargade",
-    emergencyContactPhone: "+91 98220 12345",
-    careerGoals: "Software Engineer",
+    guardianName: "",
+    guardianPhone: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    careerGoals: "",
     preferredJobType: "Full-time",
-    preferredLocations: ["Pune", "Mumbai", "Bangalore"],
-    workExperienceYears: 1,
+    preferredLocations: [],
+    workExperienceYears: 0,
     linkedinUrl: "",
     githubUrl: "",
     portfolioUrl: "",
-    languages: ["English", "Hindi", "Marathi"],
-    profileCompleted: true,
-    profileCompletion: 85,
-    verifiedStatus: true,
+    languages: [],
+    profileCompleted: false,
+    profileCompletion: 0,
+    verifiedStatus: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    full_name: userDisplayName || "Aditya Wargade",
-    education_level: "College",
+    full_name: userDisplayName || "",
+    education_level: "",
   };
 }
 
-function createDefaultEducationProfile(eduId: string, userId: string): EducationDetails {
+export function createInitialEducationProfile(eduId: string, userId: string): EducationDetails {
   return {
     eduId,
     userId,
-    educationLevel: "Undergraduate / College",
-    institutionName: "COEP Technological University",
-    collegeName: "COEP Technological University",
-    university: "State Technological University",
-    degree: "B.Tech",
-    course: "Computer Engineering",
-    branch: "Computer Science & Engineering",
-    specialization: "AI & Distributed Systems",
-    year: "3rd Year",
-    semester: "Semester 6",
-    academicYear: "2023-2027",
-    mediumOfEducation: "English",
-    cgpaOrPercentage: "9.2 CGPA",
+    educationLevel: "",
+    institutionName: "",
+    collegeName: "",
+    university: "",
+    degree: "",
+    course: "",
+    branch: "",
+    specialization: "",
+    year: "",
+    semester: "",
+    academicYear: "",
+    mediumOfEducation: "",
+    cgpaOrPercentage: "",
   };
-}
-
-function getDefaultTimeline(userId: string): EducationTimelineItem[] {
-  return [
-    {
-      id: "tl_1",
-      userId,
-      institution: "COEP Technological University",
-      educationType: "Undergraduate (B.Tech)",
-      courseOrClass: "B.Tech Computer Engineering",
-      streamOrBranch: "Computer Science",
-      startYear: "2023",
-      endYear: "2027",
-      status: "Pursuing",
-      scoreOrGrade: "9.2 CGPA",
-      description: "Core computer science, algorithms, operating systems, and AI systems.",
-    },
-    {
-      id: "tl_2",
-      userId,
-      institution: "Fergusson Junior College",
-      educationType: "Higher Secondary (Class 12)",
-      courseOrClass: "Class 12 (HSC)",
-      streamOrBranch: "Science (PCM)",
-      startYear: "2021",
-      endYear: "2023",
-      status: "Completed",
-      scoreOrGrade: "94.5%",
-      description: "State Board Merit rank in Science stream.",
-    },
-  ];
-}
-
-function getDefaultSkills(userId: string): SkillItem[] {
-  return [
-    { id: "sk_1", userId, name: "React & TypeScript", category: "Technical", level: "Advanced" },
-    { id: "sk_2", userId, name: "Python", category: "Technical", level: "Advanced" },
-    { id: "sk_3", userId, name: "Data Structures & Algorithms", category: "Academic", level: "Intermediate" },
-    { id: "sk_4", userId, name: "Technical Communication", category: "Communication", level: "Advanced" },
-    { id: "sk_5", userId, name: "Team Leadership", category: "Leadership", level: "Intermediate" },
-  ];
-}
-
-function getDefaultLanguages(userId: string): UserLanguage[] {
-  return [
-    { id: "lang_1", userId, name: "English", reading: "Fluent", writing: "Fluent", speaking: "Fluent" },
-    { id: "lang_2", userId, name: "Hindi", reading: "Fluent", writing: "Fluent", speaking: "Fluent" },
-    { id: "lang_3", userId, name: "Marathi", reading: "Fluent", writing: "Fluent", speaking: "Fluent" },
-  ];
-}
-
-function getDefaultPortfolio(userId: string): PortfolioItem[] {
-  return [
-    {
-      id: "port_1",
-      userId,
-      type: "project",
-      title: "Smart Education AI — Educational Identity & Learning Platform",
-      description: "Unified AI-powered education platform with permanent EduID verification, intelligent curriculum tutoring, and accessibility.",
-      technologies: ["React", "TypeScript", "Firebase", "Tailwind CSS"],
-      organization: "Smart Education AI",
-      startDate: "2026-01-10",
-      completionDate: "2026-08-30",
-    },
-    {
-      id: "port_2",
-      userId,
-      type: "hackathon",
-      title: "Smart India Hackathon 2026",
-      description: "Selected as National Grand Finalist for inclusive AI education architecture.",
-      organization: "Ministry of Education & AICTE",
-      rankOrPosition: "Finalist",
-      startDate: "2026-03-01",
-      completionDate: "2026-08-30",
-    },
-  ];
 }

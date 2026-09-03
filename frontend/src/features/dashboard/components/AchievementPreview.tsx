@@ -44,7 +44,7 @@ export const AchievementPreview: React.FC<AchievementPreviewProps> = ({ achievem
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
                   {item.category === "Hackathon" ? (
                     <Trophy className="h-4 w-4" />
-                  ) : item.category === "Streak Milestone" ? (
+                  ) : item.category === "Streak Milestone" || item.category === "Milestone" ? (
                     <Flame className="h-4 w-4 text-amber-500 fill-amber-500" />
                   ) : (
                     <ShieldCheck className="h-4 w-4 text-cyan-600" />

@@ -130,6 +130,56 @@ export const PersonalProfile: React.FC<PersonalProfileProps> = ({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Profile Photo Uploader Row */}
+        <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50/70">
+          <div className="h-16 w-16 rounded-full border border-gray-300 bg-white overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+            {formData.avatarUrl || formData.photoURL ? (
+              <img src={formData.avatarUrl || formData.photoURL} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              <User className="h-7 w-7 text-gray-400" />
+            )}
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-gray-900 block">Identity Photo</span>
+            <p className="text-[11px] text-gray-500">Official photo used on your EduID card and portfolio.</p>
+          </div>
+          {isEditing && (
+            <label className="ml-auto cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-gray-100 shadow-2xs transition-colors">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!file.type.startsWith("image/")) {
+                    toast.error("Please upload an image file (JPG, PNG, WebP)");
+                    return;
+                  }
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast.error("Image file must be under 5MB");
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = (loadEvt) => {
+                    const dataUrl = loadEvt.target?.result as string;
+                    if (dataUrl) {
+                      setFormData({
+                        ...formData,
+                        avatarUrl: dataUrl,
+                        photoURL: dataUrl,
+                      });
+                      toast.success("Photo updated! Click 'Save Changes' to apply.");
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+                className="hidden"
+              />
+              Upload Photo
+            </label>
+          )}
+        </div>
+
         {/* Basic Fields */}
         <div className="space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">

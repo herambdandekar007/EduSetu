@@ -60,7 +60,22 @@ export function useDashboardData() {
       setNotifications(data.notifications);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
-      toast.error("Notice: Initialized Smart Education AI dashboard.");
+      try {
+        const fallback = await loadCompleteDashboardData("guest_student", user?.email || undefined, user?.displayName || undefined);
+        setStudent(fallback.student);
+        setIntelligence(fallback.intelligence);
+        setProgress(fallback.progress);
+        setTodayPlan(fallback.todayPlan);
+        setRecommendations(fallback.recommendations);
+        setRoadmap(fallback.roadmap);
+        setCareer(fallback.career);
+        setPerformance(fallback.performance);
+        setAchievements(fallback.achievements);
+        setUpcomingTasks(fallback.upcomingTasks);
+        setNotifications(fallback.notifications);
+      } catch (fallbackErr) {
+        console.error("Dashboard fallback error:", fallbackErr);
+      }
     } finally {
       setLoading(false);
     }

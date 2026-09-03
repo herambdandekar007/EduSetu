@@ -2,6 +2,9 @@
 // Master 3D AI Command Center Dashboard for SMART EDUCATION AI
 
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import { AlertCircle, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { DashboardTopNav } from "../components/DashboardTopNav";
@@ -20,6 +23,7 @@ import { QuickActions } from "../components/QuickActions";
 import { DashboardSkeleton } from "../components/DashboardSkeleton";
 
 export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     loading,
     student,
@@ -50,6 +54,34 @@ export const DashboardPage: React.FC = () => {
 
         <div className="flex-1 p-4 sm:p-6 space-y-6 pb-20 max-w-7xl mx-auto w-full">
           
+          {/* Setup Action Required Banner for new / incomplete users */}
+          {!student.profileCompleted && (
+            <div className="relative overflow-hidden rounded-3xl border border-indigo-200 bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 p-5 sm:p-6 text-white shadow-md">
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-2xl">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-indigo-200 backdrop-blur-xs">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-300" />
+                    <span>PROFILE SETUP REQUIRED</span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                    Complete your profile to unlock full AI capabilities 🎓
+                  </h2>
+                  <p className="text-xs text-indigo-100/90 leading-relaxed">
+                    Please fill in your personal contact details, education level, and accessibility needs first so our AI can accurately curate your personalized curriculum, schemes, and job matches.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={() => navigate("/profile")}
+                  className="rounded-xl bg-white text-indigo-900 hover:bg-indigo-50 font-bold text-xs px-5 py-2.5 shrink-0 shadow-sm gap-1.5 self-start md:self-center"
+                >
+                  <span>Complete Profile Now</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-indigo-700" />
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* 2. Professional Hero Section */}
           <DashboardHero student={student} />
 

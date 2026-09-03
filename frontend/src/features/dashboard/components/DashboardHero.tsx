@@ -38,7 +38,9 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({ student }) => {
               {greeting}, <span className="text-indigo-600">{student.fullName}</span> 👋
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-xl leading-relaxed">
-              You are making consistent progress. Your AI tutor has prepared today's personalized curriculum & interview practice drills.
+              {student.profileCompleted
+                ? "You are making consistent progress. Your AI tutor has prepared today's personalized curriculum & interview practice drills."
+                : "Welcome! Complete your student profile details first to unlock your personalized curriculum, AI tutor drills, and scheme matches."}
             </p>
           </div>
 
@@ -62,22 +64,33 @@ export const DashboardHero: React.FC<DashboardHeroProps> = ({ student }) => {
 
           {/* Primary Call to Actions */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Button
-              onClick={() => navigate("/learn")}
-              className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 font-semibold text-white shadow-sm active:scale-95 transition-all text-xs"
-            >
-              <BookOpen className="mr-2 h-4 w-4" />
-              <span>Continue Learning</span>
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            {!student.profileCompleted ? (
+              <Button
+                onClick={() => navigate("/profile")}
+                className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 font-semibold text-white shadow-sm active:scale-95 transition-all text-xs"
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Complete Profile First</span>
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={() => navigate("/learn")}
+                className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 font-semibold text-white shadow-sm active:scale-95 transition-all text-xs"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                <span>Continue Learning</span>
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
 
             <Button
               variant="outline"
-              onClick={() => navigate("/eduroadmap")}
+              onClick={() => navigate(student.profileCompleted ? "/eduroadmap" : "/profile")}
               className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all text-xs"
             >
               <Compass className="mr-2 h-4 w-4 text-indigo-600" />
-              <span>Explore Career Roadmap</span>
+              <span>{student.profileCompleted ? "Explore Career Roadmap" : "Update Details"}</span>
             </Button>
           </div>
         </div>

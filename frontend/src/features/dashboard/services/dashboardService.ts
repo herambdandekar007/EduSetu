@@ -64,11 +64,11 @@ export async function loadCompleteDashboardData(
   const eduData = eduSnap?.exists() ? eduSnap.data() : null;
   const pointsData = pointsSnap?.exists() ? pointsSnap.data() : null;
 
-  const rawFullName = profileData?.fullName || profileData?.full_name || userDisplayName || "Aditya Wargade";
-  const firstName = rawFullName.split(" ")[0];
-  const eduId = profileData?.eduId || profileData?.edu_id || "EDU-IND-8F42A9";
-  const educationLevel = eduData?.educationLevel || profileData?.educationLevel || profileData?.education_level || "College";
-  const institutionName = eduData?.institutionName || eduData?.collegeName || "COEP Technological University";
+  const rawFullName = profileData?.fullName || profileData?.full_name || userDisplayName || (userEmail ? userEmail.split("@")[0] : "Student");
+  const firstName = rawFullName.split(" ")[0] || "Student";
+  const eduId = profileData?.eduId || profileData?.edu_id || ("EDU-IND-" + (activeUid !== "guest_student" ? activeUid.slice(0, 6).toUpperCase() : "8F42A9"));
+  const educationLevel = eduData?.educationLevel || profileData?.educationLevel || profileData?.education_level || "Undergraduate / College";
+  const institutionName = eduData?.institutionName || eduData?.collegeName || "State Technological University";
 
   // Parse Skills
   const skillsList: string[] = [];
@@ -97,31 +97,39 @@ export async function loadCompleteDashboardData(
     });
   }
 
+  const isProfileCompleted = Boolean(profileData?.profileCompleted || profileData?.profile_completed);
+  const isNewUser = !pointsData || !isProfileCompleted;
+
+  // Real user points & streak (no hardcoded 7 days or 1250 pts for new accounts!)
+  const streakDays = typeof pointsData?.streak === "number" ? pointsData.streak : (isProfileCompleted ? 1 : 0);
+  const userPoints = typeof pointsData?.points === "number" ? pointsData.points : (isProfileCompleted ? 50 : 25);
+  const profileCompletionScore = typeof profileData?.profileCompletion === "number"
+    ? profileData.profileCompletion
+    : (isProfileCompleted ? 85 : 20);
+
   // Fallback default achievements if new account
   if (achievementsList.length === 0) {
-    achievementsList.push(
-      {
-        id: "ach_1",
-        title: "Smart India Hackathon 2026 Grand Finalist",
-        category: "Hackathon",
-        organization: "Ministry of Education & AICTE",
-        date: "Aug 2026",
-      },
-      {
-        id: "ach_2",
-        title: "Advanced AI & TypeScript Mastery",
-        category: "Certificate",
-        organization: "EduVault Verified Credential",
-        date: "Aug 2026",
-      },
-      {
-        id: "ach_3",
-        title: "7-Day Consistent Learning Streak",
-        category: "Streak Milestone",
-        organization: "Smart Education AI Gamification",
-        date: "Active",
-      }
-    );
+    if (isProfileCompleted) {
+      achievementsList.push(
+        {
+          id: "ach_1",
+          title: "Profile Onboarding Verified",
+          category: "Milestone",
+          organization: "Smart Education AI Node",
+          date: "Completed",
+        }
+      );
+    } else {
+      achievementsList.push(
+        {
+          id: "ach_welcome",
+          title: "Welcome New Learner",
+          category: "Getting Started",
+          organization: "Smart Education AI",
+          date: "Initial Step",
+        }
+      );
+    }
   }
 
   // Student Profile Summary
@@ -135,10 +143,11 @@ export async function loadCompleteDashboardData(
     photoURL: profileData?.photoURL || profileData?.avatarUrl || "",
     educationLevel,
     institutionName,
-    profileCompletion: profileData?.profileCompletion || 85,
-    learningStatus: "Active · On Track for Semester 6",
-    streakDays: pointsData?.streak || 7,
-    userPoints: pointsData?.points || 1250,
+    profileCompletion: profileCompletionScore,
+    profileCompleted: isProfileCompleted,
+    learningStatus: isProfileCompleted ? "Active · Enrolled" : "Setup Required · Complete Profile to Unlock AI Data",
+    streakDays,
+    userPoints,
   };
 
   // Learning Intelligence
@@ -146,27 +155,27 @@ export async function loadCompleteDashboardData(
     strengths:
       skillsList.length > 0
         ? skillsList.slice(0, 3)
-        : ["Data Structures & Algorithms", "Full-Stack Development", "Logical Reasoning"],
-    weaknesses: ["Speech Fluency & Pronunciation", "Cloud Distributed Systems", "Speed Math Drills"],
-    learningSpeed: "Optimal (1.25x)",
-    studyConsistency: 94,
-    conceptMastery: 82,
-    accuracyRate: 88,
-    activeLearningMinutesThisWeek: 420,
+        : (isProfileCompleted ? ["General Aptitude", "Digital Literacy"] : ["Profile Setup Needed"]),
+    weaknesses: isProfileCompleted ? ["Speech Fluency & Pronunciation", "Cloud Distributed Systems"] : ["Initial Diagnostic Required"],
+    learningSpeed: isProfileCompleted ? "Optimal (1.0x)" : "Calibrating",
+    studyConsistency: isProfileCompleted ? 80 : 0,
+    conceptMastery: isProfileCompleted ? 65 : 0,
+    accuracyRate: isProfileCompleted ? 75 : 0,
+    activeLearningMinutesThisWeek: isProfileCompleted ? 120 : 0,
   };
 
   // Overall Learning Progress
   const progress: OverallLearningProgress = {
-    overallPercentage: 74,
-    subjectsCompleted: 5,
-    totalSubjects: 7,
-    topicsCompleted: 38,
-    totalTopics: 52,
-    learningMaterialsCompleted: 64,
-    quizAccuracy: 88,
-    studyHoursTotal: 48.5,
-    weeklyTargetHours: 15,
-    weeklyCompletedHours: 11.2,
+    overallPercentage: isProfileCompleted ? 30 : 0,
+    subjectsCompleted: isProfileCompleted ? 1 : 0,
+    totalSubjects: 6,
+    topicsCompleted: isProfileCompleted ? 4 : 0,
+    totalTopics: 48,
+    learningMaterialsCompleted: isProfileCompleted ? 8 : 0,
+    quizAccuracy: isProfileCompleted ? 75 : 0,
+    studyHoursTotal: isProfileCompleted ? 3.5 : 0,
+    weeklyTargetHours: 10,
+    weeklyCompletedHours: isProfileCompleted ? 1.2 : 0,
   };
 
   // Today's AI Learning Plan
@@ -282,19 +291,19 @@ export async function loadCompleteDashboardData(
 
   // Performance Overview
   const performance: PerformanceOverviewData = {
-    overallMarksScore: 88,
-    quizPerformanceScore: 86,
-    assignmentScore: 92,
-    attendanceScore: 95,
-    activityScore: 90,
+    overallMarksScore: isProfileCompleted ? 84 : 0,
+    quizPerformanceScore: isProfileCompleted ? 82 : 0,
+    assignmentScore: isProfileCompleted ? 88 : 0,
+    attendanceScore: isProfileCompleted ? 95 : 100,
+    activityScore: isProfileCompleted ? 85 : 0,
     timeFilter: "monthly",
     recentWeeklyScores: [
-      { label: "W1", score: 78 },
-      { label: "W2", score: 82 },
-      { label: "W3", score: 85 },
-      { label: "W4", score: 88 },
-      { label: "W5", score: 91 },
-      { label: "Current", score: 88 },
+      { label: "W1", score: isProfileCompleted ? 72 : 0 },
+      { label: "W2", score: isProfileCompleted ? 78 : 0 },
+      { label: "W3", score: isProfileCompleted ? 82 : 0 },
+      { label: "W4", score: isProfileCompleted ? 85 : 0 },
+      { label: "W5", score: isProfileCompleted ? 88 : 0 },
+      { label: "Current", score: isProfileCompleted ? 84 : 0 },
     ],
   };
 
