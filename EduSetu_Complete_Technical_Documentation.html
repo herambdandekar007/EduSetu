@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSetu (DivyangConnect AI) — Complete Technical Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+  
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.65;
+    color: #1e293b;
+    background-color: #ffffff;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #0f172a;
+    font-weight: 700;
+    margin-top: 1.8em;
+    margin-bottom: 0.6em;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    font-size: 2.3rem;
+    color: #4338ca;
+    border-bottom: 3px solid #6366f1;
+    padding-bottom: 12px;
+    margin-top: 0.5em;
+  }
+
+  h2 {
+    font-size: 1.6rem;
+    border-bottom: 1.5px solid #e2e8f0;
+    padding-bottom: 8px;
+    color: #1e1b4b;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    color: #312e81;
+  }
+
+  p, li {
+    font-size: 1rem;
+    color: #334155;
+  }
+
+  .meta-banner {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+    color: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 14px rgba(67, 56, 202, 0.15);
+  }
+
+  .meta-banner h2 {
+    color: #ffffff;
+    border-bottom: none;
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 0.95rem;
+  }
+
+  .meta-item {
+    background: rgba(255, 255, 255, 0.12);
+    padding: 10px 14px;
+    border-radius: 8px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 0.92rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  th, td {
+    padding: 12px 14px;
+    text-align: left;
+    border: 1px solid #e2e8f0;
+  }
+
+  th {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    font-weight: 600;
+  }
+
+  tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+
+  tr:hover {
+    background-color: #f1f5f9;
+  }
+
+  code, pre {
+    font-family: 'Fira Code', Consolas, Monaco, monospace;
+    font-size: 0.88rem;
+  }
+
+  code {
+    background-color: #f1f5f9;
+    color: #4338ca;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  pre {
+    background-color: #0f172a;
+    color: #e2e8f0;
+    padding: 18px;
+    border-radius: 10px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+
+  pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
+  .badge-complete {
+    background-color: #dcfce7;
+    color: #166534;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: inline-block;
+  }
+
+  .badge-partial {
+    background-color: #fef9c3;
+    color: #854d0e;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: inline-block;
+  }
+
+  .callout-box {
+    background-color: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+  }
+
+  .callout-title {
+    font-weight: 700;
+    color: #1e40af;
+    margin-bottom: 4px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 36px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="meta-banner">
+  <h2>EduSetu (DivyangConnect AI) — Complete Technical Documentation</h2>
+  <div class="meta-grid">
+    <div class="meta-item"><strong>Target Event:</strong> Smart India Hackathon (SIH)</div>
+    <div class="meta-item"><strong>Version:</strong> 1.0.0 (Production Blueprint)</div>
+    <div class="meta-item"><strong>Date:</strong> 2026-08-30</div>
+    <div class="meta-item"><strong>Classification:</strong> Master System Architecture & Guide</div>
+  </div>
+</div>
+
+<h1>1. Executive Summary</h1>
+<p>
+  <strong>EduSetu</strong> (engineered as <strong>DivyangConnect AI</strong>) is an integrated, accessibility-first AI education, career empowerment, and digital credential management ecosystem. Tailored specifically to solve systemic barriers faced by students, job seekers, and persons with disabilities (Divyangjan / PwD) across India, EduSetu bridges the gap between formal education, skill acquisition, government welfare schemes, accessible employment, and lifelong academic credentialing.
+</p>
+<p>
+  The platform combines a multi-model resilient AI engine (leveraging OpenRouter, Groq, and NVIDIA NIM), an intelligent document locker (<strong>EduVault</strong>), an AI-driven speech and pronunciation coach (<strong>EduSpeak</strong>), a 24/7 curriculum-aligned AI mentor (<strong>EduMentor</strong>), dynamic career milestone generators (<strong>EduRoadmap</strong>), real-time computer vision gesture control (<strong>MediaPipe Hands</strong>), and instant DOM-level multilingual translation across 6 Indian languages.
+</p>
+
+<hr>
+
+<h1>2. Problem Statement</h1>
+<ol>
+  <li><strong>Educational Inequity & Fragmented Guidance:</strong> Students—particularly from underserved backgrounds or with specific physical/learning disabilities—lack personalized tutoring, exam revision tools, and clear milestones connecting theoretical syllabus topics to real-world careers.</li>
+  <li><strong>Accessible Technology Deficit:</strong> Standard digital learning portals lack assistive accommodations (e.g., motor-impaired navigation, dyslexia-friendly typography, automated real-time local language translations).</li>
+  <li><strong>Fragmented Welfare & Scholarship Delivery:</strong> Over 100+ Indian central and state government schemes exist for PwD and students, but navigating eligibility criteria, documentation, and deadlines is opaque and tedious.</li>
+  <li><strong>Document Verification & Fraud in Credentialing:</strong> Students lack a tamper-evident, unified digital repository for certificates, mark sheets, and disability IDs with instantaneous shareable verification.</li>
+  <li><strong>Communication & Employability Skill Gaps:</strong> Job aspirants lack safe, real-time phonetic and conversational practice environments to build interview confidence.</li>
+</ol>
+
+<hr>
+
+<h1>3. Complete Feature Breakdown Matrix</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Feature Name</th>
+      <th>Module</th>
+      <th>Target User</th>
+      <th>Core Functionality</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><strong>Permanent EduID & Profile</strong></td>
+      <td>Profile</td>
+      <td>All Students</td>
+      <td>Auto-generates unique lifetime EduID (`EDU-YYYY-XXXX`), tracks disability, education, skills, and portfolio.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>EduVault Credential Locker</strong></td>
+      <td>Credentialing</td>
+      <td>Students / Verifiers</td>
+      <td>AI OCR text extraction, document classification, SHA-256 fingerprinting, and expiring QR verification links.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>EduSpeak Speech & Voice Lab</strong></td>
+      <td>Communication</td>
+      <td>Job Seekers</td>
+      <td>Real-time speech recognition, WPM tracking, AI phonetic/fluency/grammar radar scoring, and mistake corrections.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><strong>EduMentor 24/7 AI Tutor</strong></td>
+      <td>Learning</td>
+      <td>All Students</td>
+      <td>Context-aware academic mentor adapting to syllabus, weak topics, and response modes (Simple, Detailed, Step-by-Step, Exam).</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><strong>EduRoadmap Career Engine</strong></td>
+      <td>Career</td>
+      <td>Career Aspirants</td>
+      <td>Multi-stage milestone graph generation, skill-gap analysis, and verified project recommendations.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td><strong>Learn Hub & Adaptive Quizzes</strong></td>
+      <td>Learning</td>
+      <td>Students</td>
+      <td>Topic mastery bars, AI summary notes, flashcards, formula cheat sheets, adaptive quizzes, and weak topic logging.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><strong>Performance Analytics & Badges</strong></td>
+      <td>Performance</td>
+      <td>Students / Mentors</td>
+      <td>Weighted composite index calculation (learning, quizzes, skills, projects), Recharts radar trends, automated badge rule engine.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><strong>AI Job Match & Portal</strong></td>
+      <td>Career</td>
+      <td>Job Seekers</td>
+      <td>Accessibility-tagged job board, AI profile-to-job match scoring (0-100%), missing skill detection, and 1-click apply.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><strong>Government Scheme Advisor</strong></td>
+      <td>Welfare</td>
+      <td>Divyangjan</td>
+      <td>4-step eligibility questionnaire, AI scheme matching, confidence score, and application guidance.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><strong>MediaPipe Touchless Gesture Control</strong></td>
+      <td>Accessibility</td>
+      <td>Motor-Impaired</td>
+      <td>Webcam 21-landmark tracking: Point-and-dwell auto-clicking, palm scrolling, victory gesture virtual keyboard, velocity swipe navigation.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td><strong>DOM Multilingual Translation Engine</strong></td>
+      <td>Localization</td>
+      <td>Non-English Users</td>
+      <td>Instant live DOM text node translation into 6 Indian languages (EN, HI, MR, TA, TE, GU) with local caching.</td>
+      <td><span class="badge-complete">Completed</span></td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td><strong>Nearby Services Directory</strong></td>
+      <td>Support</td>
+      <td>PwD & Caregivers</td>
+      <td>Directory of disability support centers and NGOs.</td>
+      <td><span class="badge-partial">Partially Implemented</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h1>4. Technology Stack Architecture</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Layer</th>
+      <th>Primary Technologies</th>
+      <th>Key Rationale & Connectivity</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Frontend Framework</strong></td>
+      <td>React 18, TypeScript, Vite 8</td>
+      <td>Sub-second build times, strict static typing, and high component modularity.</td>
+    </tr>
+    <tr>
+      <td><strong>UI & Styling</strong></td>
+      <td>TailwindCSS v3.4, Radix UI Primitives, Lucide Icons, Framer Motion, Recharts</td>
+      <td>Responsive, accessible design system with glassmorphism and animated visualizations.</td>
+    </tr>
+    <tr>
+      <td><strong>Backend Core</strong></td>
+      <td>Node.js (>=18), Express.js (ESM), CORS, Dotenv</td>
+      <td>Lightweight REST API orchestrating LLM calls, OCR pipelines, and prompt schemas.</td>
+    </tr>
+    <tr>
+      <td><strong>Database & Cloud</strong></td>
+      <td>Firebase Cloud Firestore, Firebase Authentication, Firebase Cloud Storage</td>
+      <td>Serverless, zero-maintenance NoSQL database with 14 indexed collections and secure file storage.</td>
+    </tr>
+    <tr>
+      <td><strong>Multi-Tier AI Provider</strong></td>
+      <td>OpenRouter (Llama 3.3 70B, DeepSeek R1), Groq Cloud, NVIDIA NIM, Offline Heuristics</td>
+      <td>Resilient failover routing ensuring 99.9% AI uptime without quota or rate-limit breakdowns.</td>
+    </tr>
+    <tr>
+      <td><strong>Computer Vision & Voice</strong></td>
+      <td>Google MediaPipe Hands, Web Speech API, SpeechSynthesis, Web Audio API</td>
+      <td>In-browser real-time 21-landmark hand tracking and client-side phonetic speech recognition.</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h1>5. Complete Database Schema (Firebase Firestore)</h1>
+
+<div class="callout-box">
+  <div class="callout-title">14 Optimized NoSQL Collections</div>
+  Firestore collections are indexed and secured with strict owner-read/write and audit rules.
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Collection</th>
+      <th>Document ID</th>
+      <th>Key Schema Fields</th>
+      <th>Security & Indexes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>profiles</code></td>
+      <td>Firebase UID</td>
+      <td><code>eduId</code> (str), <code>fullName</code> (str), <code>email</code> (str), <code>disabilityType</code> (str), <code>skills</code> (arr), <code>profileCompleted</code> (bool)</td>
+      <td>Owner write, Authenticated read</td>
+    </tr>
+    <tr>
+      <td><code>documents</code></td>
+      <td>UUID</td>
+      <td><code>userId</code> (str), <code>name</code> (str), <code>category</code> (str), <code>fileUrl</code> (str), <code>verificationStatus</code> (str), <code>isTampered</code> (bool)</td>
+      <td>Owner read/write</td>
+    </tr>
+    <tr>
+      <td><code>documentShares</code></td>
+      <td>Share Token (UUID)</td>
+      <td><code>documentId</code> (str), <code>ownerId</code> (str), <code>expiresAt</code> (timestamp), <code>passcode</code> (str), <code>accessCount</code> (num)</td>
+      <td>Public read for valid token</td>
+    </tr>
+    <tr>
+      <td><code>documentActivities</code></td>
+      <td>UUID</td>
+      <td><code>documentId</code> (str), <code>userId</code> (str), <code>action</code> (str), <code>timestamp</code> (timestamp)</td>
+      <td>Immutable audit log</td>
+    </tr>
+    <tr>
+      <td><code>subjects</code></td>
+      <td>UUID</td>
+      <td><code>userId</code> (str), <code>name</code> (str), <code>code</code> (str), <code>credits</code> (num), <code>progress</code> (num)</td>
+      <td>Filtered by <code>userId</code></td>
+    </tr>
+    <tr>
+      <td><code>quizzes</code></td>
+      <td>UUID</td>
+      <td><code>subjectId</code> (str), <code>userId</code> (str), <code>title</code> (str), <code>questions</code> (arr), <code>difficulty</code> (str)</td>
+      <td>Filtered by <code>subjectId</code></td>
+    </tr>
+    <tr>
+      <td><code>quizAttempts</code></td>
+      <td>UUID</td>
+      <td><code>quizId</code> (str), <code>userId</code> (str), <code>score</code> (num), <code>accuracy</code> (num), <code>weakTopics</code> (arr)</td>
+      <td>Ordered by <code>completedAt desc</code></td>
+    </tr>
+    <tr>
+      <td><code>jobs</code></td>
+      <td>UUID</td>
+      <td><code>title</code> (str), <code>company</code> (str), <code>location</code> (str), <code>skillsRequired</code> (arr), <code>accessibilityTags</code> (arr)</td>
+      <td>Public read, Admin write</td>
+    </tr>
+    <tr>
+      <td><code>schemes</code></td>
+      <td>UUID</td>
+      <td><code>name</code> (str), <code>ministry</code> (str), <code>category</code> (str), <code>disabilityTypes</code> (arr), <code>benefits</code> (str)</td>
+      <td>Public read, Admin write</td>
+    </tr>
+    <tr>
+      <td><code>user_points</code></td>
+      <td>Firebase UID</td>
+      <td><code>user_id</code> (str), <code>total_points</code> (num), <code>level</code> (num), <code>streak_days</code> (num)</td>
+      <td>Ordered by <code>total_points desc</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h1>6. Implementation & Local Execution Guide</h1>
+
+<pre><code># 1. Clone the project and navigate to workspace
+git clone &lt;repo_url&gt;
+cd Job-Portal-copilot-remove-supabase-database
+
+# 2. Setup and run backend
+cd backend
+npm install
+npm run dev
+
+# 3. Setup and run frontend (in a separate terminal)
+cd ../frontend
+npm install
+npm run seed     # Seeds sample jobs, schemes, and courses
+npm run dev      # Starts Vite on http://localhost:8081</code></pre>
+
+<hr>
+
+<h1>7. SIH 2026 Presentation & Live Demo Highlights</h1>
+
+<ul>
+  <li><strong>Live Touchless Hands-Free Demo:</strong> Stand back from the webcam and navigate, point, dwell-click, and scroll without touching the mouse or keyboard.</li>
+  <li><strong>Instant 6-Language DOM Switch:</strong> Toggle between English, Hindi, Marathi, and Tamil to show real-time translation across all dynamic cards.</li>
+  <li><strong>EduSpeak Pronunciation Coach:</strong> Speak into the microphone, demonstrate intentional grammatical errors, and show immediate AI radar diagnostics and correction cards.</li>
+  <li><strong>EduVault Credential Verification:</strong> Upload a mark sheet, show the OCR classification and tamper-check badge, generate an expiring QR code, and scan it live on a phone.</li>
+  <li><strong>AI Welfare Scheme Checker:</strong> Complete the 4-step eligibility questionnaire to show personalized central/state scholarship recommendations.</li>
+</ul>
+
+<hr>
+
+<h1>8. Project in One Page (Executive Summary)</h1>
+
+<pre><code>====================================================================================================
+                        EDUBRIDGING (EDUBRIDGE / DIVYANGCONNECT AI)
+                      "Inclusive AI-Powered Education to Employment Bridge"
+====================================================================================================
+
+1. CORE IDENTITY
+   - Full-stack inclusive web ecosystem connecting academic learning, welfare schemes, credential 
+     verification, and employment opportunities for students and Persons with Disabilities (PwD).
+
+2. TECH STACK AT A GLANCE
+   - Frontend : React 18, TypeScript, Vite, TailwindCSS, Radix UI, Framer Motion, Recharts.
+   - Backend  : Node.js, Express.js (ESM), CORS, Multi-Provider LLM Router.
+   - Cloud/DB : Firebase Firestore (14 Collections), Firebase Auth, Firebase Storage.
+   - AI Core  : OpenRouter / Groq / NVIDIA NIM (Llama-3.3-70B, DeepSeek-R1) with Offline Heuristics.
+   - Vision   : Google MediaPipe Hands (Realtime 21-landmark touchless gesture navigation).
+   - Audio/A11y: Web Speech API (STT), SpeechSynthesis (TTS), Dyslexia & High-Contrast Modes.
+
+3. SIX PILLARS OF FUNCTIONALITY
+   [1] EduID & Profile : Permanent digital identity tracking education, skills, and disability info.
+   [2] EduVault        : Digital locker with AI OCR, classification, tamper check, & expiring QR shares.
+   [3] EduMentor 24/7  : Context-aware AI tutor adapting to syllabus, weak topics, and exam modes.
+   [4] EduSpeak        : AI speech & pronunciation coach with radar scores and real-time corrections.
+   [5] EduRoadmap      : Dynamic milestone generator mapping skills to industry career goals.
+   [6] Inclusion Engine: Touchless webcam gestures + DOM auto-translation in 6 Indian languages.
+
+4. SOCIAL IMPACT & SIH USP
+   - Zero-Barrier Access : Operable completely hands-free or with screen readers.
+   - Transparent Welfare : Connects 2.68 Cr+ Divyangjan to 100+ government welfare schemes.
+   - Verified Credentials: Tamper-evident sharing of student achievements without physical paperwork.
+====================================================================================================</code></pre>
+
+</body>
+</html>

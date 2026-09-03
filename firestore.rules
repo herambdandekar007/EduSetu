@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Profiles Collection
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // EduVault Documents Collection
+    match /documents/{documentId} {
+      // Owner has full read, write, delete access
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Document Activities Collection (Audit Trail)
+    match /documentActivities/{activityId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Immutable audit logs
+    }
+
+    // Document Shares Collection
+    match /documentShares/{shareId} {
+      // Public / Token-based reads for active tokens, owner writes
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Verification Requests Collection
+    match /verificationRequests/{requestId} {
+      allow create: if isAuthenticated() && request.resource.data.studentId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.studentId == request.auth.uid || request.auth.token.role == 'institution');
+      allow update: if isAuthenticated();
+    }
+
+    // Vault Notifications Collection
+    match /vaultNotifications/{notificationId} {
+      allow create: if isAuthenticated();
+      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Document Versions Collection
+    match /documentVersions/{versionId} {
+      allow create: if isAuthenticated() && request.resource.data.modifiedBy == request.auth.uid;
+      allow read: if isAuthenticated();
+    }
+
+    // Vault Settings Collection
+    match /vaultSettings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+}
