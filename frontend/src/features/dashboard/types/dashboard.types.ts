@@ -12,6 +12,7 @@ export interface StudentDashboardData {
   educationLevel: string;
   institutionName: string;
   profileCompletion: number;
+  profileCompleted?: boolean;
   learningStatus: string;
   streakDays: number;
   userPoints: number;
@@ -98,7 +99,14 @@ export interface PerformanceOverviewData {
 export interface RecentAchievementItem {
   id: string;
   title: string;
-  category: "Hackathon" | "Certificate" | "Quiz Mastery" | "Streak Milestone" | "Project";
+  category:
+    | "Hackathon"
+    | "Certificate"
+    | "Quiz Mastery"
+    | "Streak Milestone"
+    | "Milestone"
+    | "Getting Started"
+    | "Project";
   organization: string;
   date: string;
   iconName?: string;

@@ -114,26 +114,26 @@ export const EduIDCard: React.FC<EduIDCardProps> = ({
 
             <div className="space-y-1">
               <span className="text-gray-500 font-medium">Registered Email</span>
-              <p className="font-semibold text-black">{profile.email || "student@education.gov.in"}</p>
+              <p className="font-semibold text-black">{profile.email || "Not Provided"}</p>
             </div>
 
             <div className="space-y-1">
               <span className="text-gray-500 font-medium">Education Level</span>
               <p className="font-semibold text-black">
-                {education?.educationLevel || profile.education_level || "College / University"}
+                {education?.educationLevel || profile.education_level || "Not Specified"}
               </p>
             </div>
 
             <div className="space-y-1">
               <span className="text-gray-500 font-medium">Institution Node</span>
               <p className="font-semibold text-black">
-                {education?.institutionName || education?.collegeName || "COEP Technological University"}
+                {education?.institutionName || education?.collegeName || "Not Linked"}
               </p>
             </div>
 
             <div className="space-y-1">
               <span className="text-gray-500 font-medium">State Registry</span>
-              <p className="font-semibold text-black">{profile.state || "Maharashtra"}</p>
+              <p className="font-semibold text-black">{profile.state || "Not Specified"}</p>
             </div>
 
             <div className="space-y-1">

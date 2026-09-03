@@ -19,6 +19,7 @@ import {
   Building,
   FileText,
   Layers,
+  Camera,
 } from "lucide-react";
 import type { PortfolioItem, PortfolioItemType } from "../types/profile.types";
 import { toast } from "sonner";
@@ -440,7 +441,7 @@ export const EduPortfolio: React.FC<EduPortfolioProps> = ({
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-gray-900">Live Demo / Document URL</Label>
+                <Label className="text-xs font-semibold text-gray-900">Live Demo URL</Label>
                 <Input
                   type="url"
                   value={formState.liveDemoUrl}
@@ -448,6 +449,61 @@ export const EduPortfolio: React.FC<EduPortfolioProps> = ({
                   placeholder="https://..."
                   className="h-9 rounded-lg border-gray-300 bg-white text-xs text-black"
                 />
+              </div>
+            </div>
+
+            {/* Direct Image / Certificate Upload */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-900">Attach Screenshot / Certificate Image</Label>
+              <div className="flex items-center gap-3">
+                {formState.documentUrl && (
+                  <div className="h-12 w-12 rounded-lg border border-gray-200 overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center">
+                    <img src={formState.documentUrl} alt="Preview" className="h-full w-full object-cover" />
+                  </div>
+                )}
+                <label className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50/70 p-2 hover:border-black cursor-pointer transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith("image/")) {
+                        toast.error("Please select an image file.");
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error("Image file must be under 5MB.");
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        const dataUrl = loadEvt.target?.result as string;
+                        if (dataUrl) {
+                          setFormState({ ...formState, documentUrl: dataUrl });
+                          toast.success("Attachment loaded successfully!");
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                    className="hidden"
+                  />
+                  <Camera className="h-3.5 w-3.5 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">
+                    {formState.documentUrl ? "Replace Image File" : "Upload Image from Device (PNG, JPG)"}
+                  </span>
+                </label>
+                {formState.documentUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormState({ ...formState, documentUrl: "" })}
+                    className="h-8 text-xs text-rose-600 hover:text-rose-700 px-2"
+                  >
+                    Remove
+                  </Button>
+                )}
               </div>
             </div>
 
