@@ -38,8 +38,8 @@ router.post("/analyze", async (req, res) => {
   const words = transcript.trim().split(/\s+/).filter(Boolean);
 
   const systemPrompt = `You are a supportive, high-precision AI Speech, Pronunciation & Communication Coach for DivyangConnect.
-Analyze the student's spoken transcript.
-Return ONLY valid JSON (no markdown wrapping, no extra text):
+Analyze the student's spoken speech in language: "${language || "English"}".
+Return ONLY valid JSON (no markdown wrapping, no conversational prefix):
 {
   "overallScore": 0-100,
   "pronunciationScore": 0-100,
@@ -48,7 +48,7 @@ Return ONLY valid JSON (no markdown wrapping, no extra text):
   "vocabularyScore": 0-100,
   "confidenceScore": 0-100,
   "speakingPaceWpm": number,
-  "correctedSentence": "Full natural standard English sentence rewriting the transcript",
+  "correctedSentence": "Polished, grammatically standard version of the sentence in the same spoken language (${language || "English"})",
   "mistakes": [
     {
       "original": "spoken error snippet",
@@ -86,7 +86,7 @@ Student spoken transcript:
       ],
       temperature: 0.3,
       json: true,
-      maxTokens: 2048,
+      maxTokens: 800,
     });
 
     const parsed = parseJSONLoose(raw);
@@ -97,23 +97,25 @@ Student spoken transcript:
     throw new Error("Failed to parse AI speech response");
   } catch (err) {
     console.warn("AI analyze failover:", err);
-    // Deterministic quality fallback
-    const hasGrammarGlitch = /\b(gonna|wanna|he don't|she don't|i am go)\b/i.test(transcript);
-    const score = hasGrammarGlitch ? 70 : 85;
+    const isEnglish = !language || language.toLowerCase().includes("english");
+    const hasGrammarGlitch = isEnglish && /\b(gonna|wanna|he don't|she don't|i am go)\b/i.test(transcript);
+    const score = hasGrammarGlitch ? 72 : 85;
 
     res.json({
       overallScore: score,
-      pronunciationScore: 80,
-      fluencyScore: 78,
+      pronunciationScore: 82,
+      fluencyScore: 80,
       grammarScore: hasGrammarGlitch ? 68 : 88,
-      vocabularyScore: Math.min(95, words.length * 6 + 50),
-      confidenceScore: 82,
+      vocabularyScore: Math.min(95, words.length * 8 + 55),
+      confidenceScore: 84,
       speakingPaceWpm: Math.round((words.length / (durationSeconds || 10)) * 60) || 115,
-      correctedSentence: transcript
-        .replace(/\bgonna\b/gi, "going to")
-        .replace(/\bwanna\b/gi, "want to")
-        .replace(/\bhe don't\b/gi, "he doesn't")
-        .replace(/\bshe don't\b/gi, "she doesn't"),
+      correctedSentence: isEnglish
+        ? transcript
+            .replace(/\bgonna\b/gi, "going to")
+            .replace(/\bwanna\b/gi, "want to")
+            .replace(/\bhe don't\b/gi, "he doesn't")
+            .replace(/\bshe don't\b/gi, "she doesn't")
+        : transcript,
       mistakes: hasGrammarGlitch
         ? [
             {
@@ -124,11 +126,15 @@ Student spoken transcript:
             },
           ]
         : [],
-      strengths: ["Clear vocal projection", "Good flow of primary ideas", "Natural speaking speed"],
-      weaknesses: hasGrammarGlitch ? ["Grammatical verb agreement precision"] : ["Occasional filler hesitation"],
+      strengths: [
+        "Clear vocal articulation and tone",
+        "Natural expression of thoughts",
+        "Steady and confident speaking delivery",
+      ],
+      weaknesses: hasGrammarGlitch ? ["Grammatical verb agreement precision"] : ["Can expand with additional supporting details"],
       recommendations: [
-        "Practice reading 2-minute paragraphs aloud while pausing at punctuation marks.",
-        "Record a 60-second summary of your day to build spontaneous fluency.",
+        "Practice speaking with complete sentences to build conversational depth.",
+        "Record 60-second answers to common questions to build spontaneous speaking fluency.",
       ],
       feedback: "Great practice session! Your voice was clear and easy to understand. Keep up the daily practice.",
     });
