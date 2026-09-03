@@ -232,16 +232,15 @@ export const EduVaultPage = () => {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              variant="outline"
               onClick={() => setSettingsModalOpen(true)}
-              className="bg-white/10 text-white border-white/20 hover:bg-white/20 rounded-xl gap-1 text-xs"
+              className="bg-white hover:bg-slate-100 text-indigo-950 font-semibold shadow-sm border border-white/40 transition-all text-xs h-9 px-3.5 [&_svg]:text-indigo-600 rounded-xl gap-1.5"
             >
               <Settings className="h-4 w-4" /> Settings
             </Button>
             <Button
               size="sm"
               onClick={() => handleOpenUpload(false)}
-              className="bg-white text-primary hover:bg-white/90 font-bold rounded-xl gap-1 text-xs shadow-md"
+              className="bg-indigo-600 text-white hover:bg-indigo-700 font-semibold rounded-xl gap-1.5 text-xs h-9 px-3.5 shadow-md border border-indigo-400/40"
             >
               <Upload className="h-4 w-4" /> Upload Document
             </Button>

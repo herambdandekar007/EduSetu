@@ -315,11 +315,10 @@ export const EduRoadmapPage: React.FC = () => {
           icon={<Map className="h-5 w-5 text-white" />}
         >
           <Button
-            variant="outline"
             size="sm"
             onClick={() => loadData(true)}
             disabled={isRegenerating}
-            className="gap-2 rounded-xl border-white/20 text-white hover:bg-white/10"
+            className="gap-2 rounded-xl bg-white hover:bg-slate-100 text-indigo-950 font-semibold shadow-sm border border-white/40 transition-all text-xs h-9 px-3.5 disabled:opacity-60 [&_svg]:text-indigo-600 shrink-0"
           >
             <RefreshCw className={`h-4 w-4 ${isRegenerating ? "animate-spin" : ""}`} />
             Regenerate Roadmap
