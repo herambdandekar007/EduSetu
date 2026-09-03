@@ -104,8 +104,8 @@ import type {
 ========================================================= */
 import { getLearnData } from "../features/learn/services/learnService";
 import type { LearnData } from "../features/learn/types/learn.types";
-import { getUserRoadmap } from "../features/eduroadmap/services/roadmapService";
-import type { UserEduRoadmap, RoadmapStep, SkillGapItem, NextBestStep } from "../features/eduroadmap/types/roadmap.types";
+import { getUserRoadmap, getAvailableCareerPaths } from "../features/eduroadmap/services/roadmapService";
+import type { UserEduRoadmap, RoadmapStep, SkillGapItem, NextBestStep, CareerPathOption } from "../features/eduroadmap/types/roadmap.types";
 
 /* =========================================================
    FIREBASE
@@ -361,6 +361,8 @@ const OverviewSection = ({ onOpenSection }: { onOpenSection: (id: SectionId) => 
     academicLevel: profile?.education_level || "Academic Track",
   });
 
+  const [recommendations, setRecommendations] = useState<Recommendation[]>(RECOMMENDATIONS);
+
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -404,6 +406,55 @@ const OverviewSection = ({ onOpenSection }: { onOpenSection: (id: SectionId) => 
           skillsCount: skills,
           academicLevel: level,
         });
+
+        const weakTopic =
+          learn.status === "fulfilled" && learn.value?.progress?.weakTopics?.[0]
+            ? learn.value.progress.weakTopics[0]
+            : null;
+        const activeSubject =
+          learn.status === "fulfilled" && learn.value?.subjects?.[0]
+            ? learn.value.subjects[0].name
+            : null;
+
+        const dynRecs: Recommendation[] = [
+          {
+            id: "r1",
+            icon: <GraduationCap className="h-4 w-4" />,
+            label: profile?.institution_name ? "Verify EduID Profile" : "Complete Academic Profile",
+            minutes: 5,
+            reason: profile?.institution_name
+              ? `Institution: ${profile.institution_name} • ${profile.course || profile.education_level || "Active"}`
+              : "Verify your institution and enrolled subjects to synchronize AI tutoring.",
+            section: "education-profile",
+          },
+          {
+            id: "r2",
+            icon: <BookOpen className="h-4 w-4" />,
+            label: weakTopic ? `Revise: ${weakTopic}` : activeSubject ? `Study: ${activeSubject}` : "Explore Course Syllabus",
+            minutes: 20,
+            reason: weakTopic
+              ? `AI identified ${weakTopic} as your priority focus area for score improvement.`
+              : "Continue through your active curriculum chapters and lecture materials.",
+            section: "learn",
+          },
+          {
+            id: "r3",
+            icon: <Mic className="h-4 w-4" />,
+            label: "Voice English Drill",
+            minutes: 10,
+            reason: "AI Voice Coach recommends a 90-second pronunciation and fluency drill.",
+            section: "eduspeak",
+          },
+          {
+            id: "r4",
+            icon: <Bot className="h-4 w-4" />,
+            label: "Ask 24/7 AI Mentor",
+            minutes: 15,
+            reason: "Your personalized tutor has prepared answers for today's milestone checkpoints.",
+            section: "edumentor",
+          },
+        ];
+        setRecommendations(dynRecs);
       } catch (err) {
         console.warn("loadOverview warning:", err);
       }
@@ -477,7 +528,7 @@ const OverviewSection = ({ onOpenSection }: { onOpenSection: (id: SectionId) => 
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {RECOMMENDATIONS.map((item, index) => (
+          {recommendations.map((item, index) => (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 10 }}
@@ -1334,114 +1385,246 @@ const EduVaultSection = () => {
 /* =========================================================
    7. EDUMIND SECTION
 ========================================================= */
-const EduMindSection = () => (
-  <div className="space-y-5">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Card className="rounded-2xl border-border/70">
-        <CardContent className="p-5 space-y-3">
-          <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Identified Strengths
-          </h3>
-          <div className="space-y-2">
-            {["Relational Database Architecture (SQL)", "Discrete Mathematics & Logic", "Linear Data Structures"].map((item) => (
-              <div key={item} className="flex items-center gap-2.5 text-xs p-2.5 rounded-xl bg-muted/40 text-foreground font-medium">
-                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+const EduMindSection = () => {
+  const { user } = useAuth();
+  const [strongTopics, setStrongTopics] = useState<string[]>([]);
+  const [weakTopics, setWeakTopics] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    let isMounted = true;
+    getLearnData(user.uid)
+      .then((data) => {
+        if (!isMounted) return;
+        const strong: string[] = [];
+        const weak: string[] = [];
+        data?.subjects?.forEach((s) => {
+          if (Array.isArray(s.strongTopics)) strong.push(...s.strongTopics);
+          if (Array.isArray(s.weakTopics)) weak.push(...s.weakTopics);
+        });
+        if (Array.isArray(data?.progress?.weakTopics)) {
+          weak.push(...data.progress.weakTopics);
+        }
+        if (Array.isArray(data?.progress?.strongTopics)) {
+          strong.push(...data.progress.strongTopics);
+        }
+        setStrongTopics(Array.from(new Set(strong)).slice(0, 4));
+        setWeakTopics(Array.from(new Set(weak)).slice(0, 4));
+      })
+      .catch((err) => console.warn("EduMindSection load error:", err))
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const displayStrong =
+    strongTopics.length > 0
+      ? strongTopics
+      : ["Core Subject Fundamentals", "Problem Solving Logic", "Linear Data Structures"];
+  const displayWeak =
+    weakTopics.length > 0
+      ? weakTopics
+      : ["Theoretical Proofs & Formulas", "Exam Time Management", "Complex Algorithmic Edge Cases"];
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="rounded-2xl border-border/70">
+          <CardContent className="p-5 space-y-3">
+            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Identified Strengths ({displayStrong.length})
+            </h3>
+            <div className="space-y-2">
+              {displayStrong.map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-2.5 text-xs p-2.5 rounded-xl bg-muted/40 text-foreground font-medium"
+                >
+                  <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-border/70">
+          <CardContent className="p-5 space-y-3">
+            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Focus Areas for Improvement ({displayWeak.length})
+            </h3>
+            <div className="space-y-2">
+              {displayWeak.map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-2.5 text-xs p-2.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium"
+                >
+                  <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="rounded-2xl border-border/70">
         <CardContent className="p-5 space-y-3">
-          <h3 className="font-bold text-base text-foreground flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" /> Focus Areas for Improvement
-          </h3>
-          <div className="space-y-2">
-            {["Graph Algorithms (Dijkstra edge relaxation)", "Bayesian Conditional Probability", "Operating System Thread Locks"].map((item) => (
-              <div key={item} className="flex items-center gap-2.5 text-xs p-2.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium">
-                <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
+          <h3 className="font-bold text-base text-foreground">Cognitive Learning Style Profile</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            AI analysis shows high visual & hands-on practical retention. Spaced revision every 3-4 days recommended for high-retention mastery.
+          </p>
         </CardContent>
       </Card>
     </div>
-
-    <Card className="rounded-2xl border-border/70">
-      <CardContent className="p-5 space-y-3">
-        <h3 className="font-bold text-base text-foreground">Cognitive Learning Style Profile</h3>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          AI analysis shows high visual & hands-on practical retention (78%). Spaced revision every 4 days recommended for theoretical proofs.
-        </p>
-      </CardContent>
-    </Card>
-  </div>
-);
+  );
+};
 
 /* =========================================================
    8. EDUCAREER SECTION
 ========================================================= */
-const EduCareerSection = () => (
-  <div className="space-y-5">
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[
-        { title: "Full Stack Developer", match: "88% Match", salary: "₹8 - ₹16 LPA", demand: "High Demand", color: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20" },
-        { title: "AI/ML Solutions Engineer", match: "76% Match", salary: "₹10 - ₹22 LPA", demand: "Trending", color: "text-violet-600 bg-violet-500/10 border-violet-500/20" },
-        { title: "Database & Cloud Architect", match: "82% Match", salary: "₹9 - ₹18 LPA", demand: "Stable", color: "text-blue-600 bg-blue-500/10 border-blue-500/20" },
-      ].map((track) => (
-        <Card key={track.title} className="rounded-2xl border-border/70 hover:border-primary/40 transition-all">
-          <CardContent className="p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <Badge className={`${track.color} text-[10px] font-bold`}>{track.demand}</Badge>
-              <span className="text-xs font-bold text-foreground">{track.match}</span>
-            </div>
-            <h4 className="font-bold text-base text-foreground">{track.title}</h4>
-            <p className="text-xs text-muted-foreground">Market Salary: <span className="font-semibold text-foreground">{track.salary}</span></p>
-            <Button size="sm" variant="outline" className="w-full text-xs rounded-xl mt-2 font-bold">
-              View Skill Gap Map
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+const EduCareerSection = () => {
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const [careers, setCareers] = useState<CareerPathOption[]>([]);
+
+  useEffect(() => {
+    getAvailableCareerPaths().then(setCareers).catch(console.warn);
+  }, []);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {careers.slice(0, 6).map((track) => {
+          const isCurrent = track.title === profile?.career_interest;
+          return (
+            <Card
+              key={track.id}
+              className={`rounded-2xl border-border/70 hover:border-primary/40 transition-all ${
+                isCurrent ? "ring-2 ring-primary/30 border-primary/40 bg-primary/5" : ""
+              }`}
+            >
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-bold">
+                    {track.demandLevel} Demand
+                  </Badge>
+                  {isCurrent && (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
+                      Active Target
+                    </span>
+                  )}
+                </div>
+                <h4 className="font-bold text-base text-foreground">{track.title}</h4>
+                <p className="text-xs text-muted-foreground line-clamp-2">{track.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  Typical Duration: <span className="font-semibold text-foreground">{track.estimatedDuration}</span>
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate("/eduroadmap")}
+                  className="w-full text-xs rounded-xl mt-2 font-bold"
+                >
+                  View Career Pathway →
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* =========================================================
    9. PERFORMANCE SECTION
 ========================================================= */
 const PerformanceSection = () => {
-  const subjects = [
-    { name: "Database Management Systems", value: 85 },
-    { name: "Data Structures & Algorithms", value: 78 },
-    { name: "Operating Systems", value: 74 },
-    { name: "Mathematics & Statistics", value: 65 },
-  ];
+  const { user } = useAuth();
+  const [learnData, setLearnData] = useState<LearnData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    let isMounted = true;
+    getLearnData(user.uid)
+      .then((data) => {
+        if (isMounted) setLearnData(data);
+      })
+      .catch((err) => console.warn("PerformanceSection load error:", err))
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const subjects = learnData?.subjects || [];
+  const avgQuizScore = learnData?.progress?.quizPerformance ?? 78;
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        <StatPill icon={<BarChart3 className="h-5 w-5" />} label="Average Marks" value="79%" accent="indigo" />
-        <StatPill icon={<CheckCircle2 className="h-5 w-5" />} label="Attendance" value="92%" accent="emerald" />
-        <StatPill icon={<FileText className="h-5 w-5" />} label="Projects Done" value="6" accent="blue" />
-        <StatPill icon={<Award className="h-5 w-5" />} label="Achievements" value="4" accent="amber" />
+        <StatPill
+          icon={<BarChart3 className="h-5 w-5" />}
+          label="Average Score"
+          value={isLoading ? "..." : `${avgQuizScore}%`}
+          accent="indigo"
+        />
+        <StatPill
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          label="Syllabus Mastery"
+          value={isLoading ? "..." : `${learnData?.progress?.overallProgress ?? 72}%`}
+          accent="emerald"
+        />
+        <StatPill
+          icon={<FileText className="h-5 w-5" />}
+          label="Assignments Done"
+          value={isLoading ? "..." : `${learnData?.assignments?.filter((a) => a.status === "Evaluated" || a.status === "Submitted").length || 0}`}
+          accent="blue"
+        />
+        <StatPill
+          icon={<Award className="h-5 w-5" />}
+          label="Quizzes Taken"
+          value={isLoading ? "..." : `${learnData?.quizAttempts?.length || 0}`}
+          accent="amber"
+        />
       </div>
+
       <Card className="rounded-2xl border-border/70">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-bold text-base text-foreground">Course Subject Breakdown</h3>
-          <div className="space-y-4">
-            {subjects.map((subject) => (
-              <div key={subject.name} className="space-y-1.5">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="font-semibold text-foreground">{subject.name}</span>
-                  <span className="text-muted-foreground font-bold">{subject.value}%</span>
+          {isLoading ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">Loading performance breakdown...</div>
+          ) : subjects.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">No enrolled subjects registered yet.</div>
+          ) : (
+            <div className="space-y-4">
+              {subjects.map((subject) => (
+                <div key={subject.id} className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="font-semibold text-foreground">{subject.name}</span>
+                    <span className="text-muted-foreground font-bold">{subject.progress}% Completed</span>
+                  </div>
+                  <ProgressBar value={subject.progress} accent="indigo" />
                 </div>
-                <ProgressBar value={subject.value} accent="indigo" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
