@@ -57,7 +57,7 @@ router.post("/ai-intelligence", async (req, res) => {
       });
     }
 
-    const systemPrompt = `You are the EduVault Document Intelligence AI Engine for DivyangConnectAI (National Job & Education Portal).
+    const systemPrompt = `You are the EduVault Document Intelligence AI Engine for EduSetu (National Job & Education Portal).
 Analyze the provided document metadata and content.
 Return STRICT JSON ONLY with the following schema:
 {

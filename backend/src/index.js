@@ -1,4 +1,21 @@
-import "dotenv/config";
+import fs from "fs";
+import path from "path";
+import dotenv from "dotenv";
+
+// Load .env from backend, workspace root, or frontend
+[
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(process.cwd(), "backend/.env"),
+  path.resolve(process.cwd(), "../backend/.env"),
+  path.resolve(process.cwd(), "../.env"),
+  path.resolve(process.cwd(), "frontend/.env"),
+  path.resolve(process.cwd(), "../frontend/.env"),
+].forEach((envPath) => {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+});
+
 import express from "express";
 import cors from "cors";
 import aiAssistantRouter from "./routes/aiAssistant.js";

@@ -37,7 +37,7 @@ router.post("/analyze", async (req, res) => {
 
   const words = transcript.trim().split(/\s+/).filter(Boolean);
 
-  const systemPrompt = `You are a supportive, high-precision AI Speech, Pronunciation & Communication Coach for DivyangConnect.
+  const systemPrompt = `You are a supportive, high-precision AI Speech, Pronunciation & Communication Coach for EduSetu.
 Analyze the student's spoken transcript.
 Return ONLY valid JSON (no markdown wrapping, no extra text):
 {
@@ -200,7 +200,7 @@ Return ONLY valid JSON:
 router.post("/mentor-chat", async (req, res) => {
   const { message = "", history = [] } = req.body || {};
 
-  const systemPrompt = `You are the EduSpeak AI Speaking Mentor for DivyangConnect.
+  const systemPrompt = `You are the EduSpeak AI Speaking Mentor for EduSetu.
 Give warm, highly practical communication and pronunciation coaching.
 Explain rules simply with clear examples and practice drill prompts.
 Return ONLY valid JSON:

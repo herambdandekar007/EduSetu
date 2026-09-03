@@ -186,18 +186,45 @@ function getLocalChatFallback(
   ctx: StudentLearningContext,
   mode: MentorResponseMode
 ) {
-  const weak = ctx.weakTopics[0] || "Data Structures";
-  const name = ctx.name || "Aditya";
+  const weak = ctx.weakTopics[0] || "Core Fundamentals";
+  const name = ctx.name || "Student";
 
   const lower = msg.toLowerCase();
   let reply = "";
 
-  if (lower.includes("what should i study") || lower.includes("recommend")) {
+  // Topic extraction
+  let topic = "";
+  const quoteMatch = msg.match(/["'“]([^"'”]+)["'”]/);
+  if (quoteMatch) {
+    topic = quoteMatch[1].trim();
+    const after = msg.slice(quoteMatch.index! + quoteMatch[0].length);
+    const inMatch = after.match(/^\s*(in\s+[^.?!,]+)/i);
+    if (inMatch) topic += ` ${inMatch[1].trim()}`;
+  } else {
+    const pattern = /(?:syllabus(?:\s+and\s+roadmap)?\s+for\s+(?:learning\s+)?|roadmap\s+for\s+(?:learning\s+)?|explain\s+(?:the\s+)?|guide\s+(?:to|for)\s+|how\s+to\s+learn\s+|about\s+)(.+)/i;
+    const match = msg.match(pattern);
+    if (match) {
+      topic = match[1].trim();
+    } else {
+      topic = msg;
+    }
+  }
+  topic = topic
+    .replace(/[.?!]+$/, "")
+    .replace(/^(?:the\s+)?complete\s+syllabus\s+and\s+roadmap\s+for\s+(?:learning\s+)?/i, "")
+    .replace(/^(?:syllabus|roadmap|guide|curriculum|schedule)\s+(?:and\s+roadmap\s+)?(?:for\s+)?(?:learning\s+)?/i, "")
+    .replace(/^(?:what\s+is\s+|how\s+does\s+|how\s+to\s+|explain\s+|describe\s+|learning\s+)/i, "")
+    .trim();
+  if (!topic || topic.length < 2) topic = "your curriculum topic";
+
+  if (lower.includes("syllabus") || lower.includes("roadmap") || lower.includes("curriculum")) {
+    reply = `### 🗺️ Master Curriculum Roadmap: ${topic}\n\nHello **${name}**! Here is your structured, comprehensive curriculum syllabus and roadmap for **${topic}**, customized for your academic goals:\n\n#### 🔹 Phase 1: Core Fundamentals & Theoretical Foundations (Days 1–3)\n- **Conceptual Intuition**: Core physical or mathematical definitions, fundamental laws, and standard SI units.\n- **Governing Equations**: Primary relationship formulation (e.g. Ohm's Law $V = I \\cdot R$).\n- **Milestone Check**: Explain the core principle in your own words.\n\n#### 🔹 Phase 2: Systematic Component & Structural Analysis (Days 4–7)\n- **Sub-system Configurations**: Series, parallel, and compound architectures.\n- **Worked Problem Drills**: Solve 5 standard derivation and numerical problem sets.\n- **Milestone Check**: Achieve 80%+ accuracy on foundational drills.\n\n#### 🔹 Phase 3: Energy, Power & Applications (Days 8–11)\n- **Energy Dissipation & Thermal Principles**: Work done, power conversion rates ($H = I^2Rt$, $P = VI$).\n- **Real-World Case Studies**: Modern safety mechanisms and load ratings.\n\n#### 🔹 Phase 4: Exam Review & Timed Mock Sprint (Days 12–14)\n- **Formula Cheat-Sheet**: Consolidate all formulas into a 1-page reference.\n- **Past Exam Questions**: High-yield university/board questions.\n\n---\n\n### 💡 High-Yield Exam & Mastery Tips\n1. **Always State Units & Conventions**: Double-check units before submitting calculations.\n2. **Schematic Diagrams**: Always draw clean, labeled diagrams.\n\nHow would you like to proceed? Pick a follow-up action below!`;
+  } else if (lower.includes("what should i study") || lower.includes("recommend")) {
     reply = `### 🎯 Your Recommended Study Focus for Today\n\nHello **${name}**! Based on your learning history and recent diagnostic accuracy of **${ctx.recentAccuracy}%**, here is my top recommendation:\n\n1. **Priority 1 (Weak Area):** Revise **${weak}** (30 mins).\n2. **Priority 2 (Practice):** Solve 5-10 targeted multiple-choice questions on your active syllabus.\n3. **Priority 3 (Consolidation):** Review summary cheat-sheets and flashcards.\n\nWould you like me to generate a 3-question diagnostic quiz right now to check your mastery in **${weak}**?`;
   } else if (lower.includes("plan") || lower.includes("schedule")) {
     reply = `### 📅 Smart Daily Study Plan\n\nHere is a balanced 3-hour learning schedule customized for **${ctx.course || "your course"}**:\n\n- **Block 1 (45 mins):** ${ctx.subjects[0] || "Core Theory"} – Concept review\n- **Block 2 (45 mins):** ${weak} – Practice problems & mistake analysis\n- **Break (15 mins):** Hydrate & rest your eyes\n- **Block 3 (45 mins):** Practical exercises & Quiz assessment\n- **Wrap-up (15 mins):** Log revision notes\n\nClick the **Today's Plan** tab to track each task interactively!`;
   } else {
-    reply = `### 🤖 EduMentor Insights for ${name}\n\nI have reviewed your learning parameters:\n\n- **Active Subjects:** ${ctx.subjects.join(", ")}\n- **Identified Weak Topic:** ${weak}\n- **Study Streak:** 🔥 ${ctx.studyStreakDays} Days\n\nRegarding your question: *"**${msg}**"*\n\n> **Key Concept:** To master this, start by breaking down the foundational axioms into simple sub-problems. Connect this directly with ${ctx.strongTopics[0] || "your existing strong concepts"} to bridge the cognitive gap.\n\nLet me know if you want a **Step-by-Step** breakdown, a **Code Example**, or an **Exam-focused** summary!`;
+    reply = `### 📘 EduMentor Academic Guide: ${topic}\n\nHello **${name}**! Here is the conceptual breakdown of **${topic}**:\n\n- **Active Course:** ${ctx.course || "General Studies"}\n- **Study Streak:** 🔥 ${ctx.studyStreakDays} Days\n\n#### 1. Core Principles\n**${topic}** is a vital concept in your syllabus. Start by breaking it down into fundamental definitions before tackling advanced problem sets.\n\n#### 2. Key Analytical Formulation\nObserve how variables interact under standard boundary conditions. Connect this directly with ${ctx.strongTopics[0] || "your existing strong topics"} to solidify your understanding.\n\n#### 3. Practical Next Best Action\n- Review 2 worked example problems for ${topic}.\n- Take a quick 3-question diagnostic quiz.\n\nLet me know if you want a **Step-by-Step** breakdown, a **Worked Example**, or an **Exam-focused** summary!`;
   }
 
   return {

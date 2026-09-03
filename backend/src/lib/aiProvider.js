@@ -1,12 +1,19 @@
 // backend/src/lib/aiProvider.js
 // Resilient Multi-Tier AI Provider with Active Free Model Routing & Built-in Smart Fallback Engine.
 
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
 export const VISION_MODEL = "meta-llama/llama-3.2-11b-vision-preview";
 export const EMBED_MODEL = "nvidia/nemotron-3-embed-1b";
+
+const GEMINI_ACTIVE_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+];
 
 /**
  * Verified list of active free & lightweight models on OpenRouter
@@ -41,7 +48,20 @@ const NVIDIA_ACTIVE_MODELS = [
 export function getActiveProviders() {
   const providers = [];
 
-  // 1. OpenRouter (Multi-model free tier with automatic routing)
+  // 1. Google Gemini API (Free tier via Google AI Studio / Gemini API key)
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (geminiKey) {
+    providers.push({
+      name: "gemini",
+      baseUrl: GEMINI_BASE_URL,
+      apiKey: geminiKey,
+      defaultModel: "gemini-2.0-flash",
+      fallbacks: GEMINI_ACTIVE_MODELS,
+      extraHeaders: {},
+    });
+  }
+
+  // 2. OpenRouter (Multi-model free tier with automatic routing)
   if (process.env.OPENROUTER_API_KEY) {
     providers.push({
       name: "openrouter",
@@ -51,12 +71,12 @@ export function getActiveProviders() {
       fallbacks: OPENROUTER_ACTIVE_MODELS,
       extraHeaders: {
         "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:8081",
-        "X-Title": process.env.OPENROUTER_SITE_NAME || "DivyangConnectAI",
+        "X-Title": process.env.OPENROUTER_SITE_NAME || "EduSetu",
       },
     });
   }
 
-  // 2. Groq
+  // 3. Groq (High-speed LLaMA inference)
   if (process.env.GROQ_API_KEY) {
     providers.push({
       name: "groq",
@@ -68,7 +88,19 @@ export function getActiveProviders() {
     });
   }
 
-  // 3. NVIDIA NIM
+  // 4. OpenAI
+  if (process.env.OPENAI_API_KEY) {
+    providers.push({
+      name: "openai",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: process.env.OPENAI_API_KEY,
+      defaultModel: "gpt-4o-mini",
+      fallbacks: ["gpt-4o-mini", "gpt-4o"],
+      extraHeaders: {},
+    });
+  }
+
+  // 5. NVIDIA NIM
   if (process.env.NVIDIA_API_KEY) {
     providers.push({
       name: "nvidia",
@@ -400,13 +432,7 @@ function generateSyntheticResponse({ messages = [], json = false, stream = false
     }
   } else {
     // Conversational plain-text / Markdown
-    content = `Hello! I am **EduMentor**, your personal AI guide in the DivyangConnect platform.\n\n` +
-      `I've analyzed your academic context and syllabus objectives. Here is my guidance:\n\n` +
-      `### 💡 Key Learning Recommendation\n` +
-      `- **Focus on Core Foundations**: Spend 20-30 minutes reviewing high-yield topics before attempting practice drills.\n` +
-      `- **Active Practice**: Solving 5-10 targeted multiple-choice problems reinforces conceptual retention much faster than passive reading.\n` +
-      `- **Continuous Feedback**: Track your accuracy scores and use the Next Best Action recommendations to systematically eliminate weak spots.\n\n` +
-      `How can I assist your study schedule or syllabus preparation today?`;
+    content = generateDynamicConversationalResponse(userMsg, sysMsg);
   }
 
   if (stream) {
@@ -466,3 +492,213 @@ export async function chatText(params) {
 export async function embedTexts(texts, { inputType = "passage" } = {}) {
   return texts.map(() => Array.from({ length: 384 }, () => Math.random() * 0.1));
 }
+
+function generateDynamicConversationalResponse(userMsg, sysMsg) {
+  const query = (userMsg || "").trim();
+  const lower = query.toLowerCase();
+
+  // Extract student name if present in sysMsg
+  const nameMatch = sysMsg.match(/Student Name:\s*([^\n\r(]+)/i);
+  const studentName = nameMatch ? nameMatch[1].trim() : "Student";
+
+  // Extract response mode
+  let mode = "detailed";
+  if (sysMsg.includes("EXPLAIN SIMPLY")) mode = "simple";
+  if (sysMsg.includes("PROVIDE CONCRETE EXAMPLES")) mode = "with_examples";
+  if (sysMsg.includes("STEP-BY-STEP BREAKDOWN")) mode = "step_by_step";
+  if (sysMsg.includes("EXAM-FOCUSED")) mode = "exam_focused";
+
+  // Extract topic from query
+  let topic = "";
+  const quoteMatch = query.match(/["'“]([^"'”]+)["'”]/);
+  if (quoteMatch) {
+    topic = quoteMatch[1].trim();
+    const after = query.slice(quoteMatch.index + quoteMatch[0].length);
+    const inMatch = after.match(/^\s*(in\s+[^.?!,]+)/i);
+    if (inMatch) topic += ` ${inMatch[1].trim()}`;
+  } else {
+    const pattern = /(?:syllabus(?:\s+and\s+roadmap)?\s+for\s+(?:learning\s+)?|roadmap\s+for\s+(?:learning\s+)?|explain\s+(?:the\s+)?|guide\s+(?:to|for)\s+|how\s+to\s+learn\s+|about\s+)(.+)/i;
+    const match = query.match(pattern);
+    if (match) {
+      topic = match[1].trim();
+    } else {
+      topic = query;
+    }
+  }
+  topic = topic
+    .replace(/[.?!]+$/, "")
+    .replace(/^(?:the\s+)?complete\s+syllabus\s+and\s+roadmap\s+for\s+(?:learning\s+)?/i, "")
+    .replace(/^(?:syllabus|roadmap|guide|curriculum|schedule)\s+(?:and\s+roadmap\s+)?(?:for\s+)?(?:learning\s+)?/i, "")
+    .replace(/^(?:what\s+is\s+|how\s+does\s+|how\s+to\s+|explain\s+|describe\s+|learning\s+)/i, "")
+    .trim();
+  if (!topic || topic.length < 2) topic = "your curriculum topic";
+
+  // 1. Syllabus & Roadmap queries (such as "Explain the complete syllabus and roadmap for learning 'Electricity' in Science.")
+  if (lower.includes("syllabus") || lower.includes("roadmap") || lower.includes("curriculum") || lower.includes("schedule")) {
+    return `Hello **${studentName}**! Here is your structured, comprehensive curriculum syllabus and roadmap for **${topic}**, customized for your academic goals:
+
+### 🗺️ Master Curriculum Roadmap: ${topic}
+
+#### 🔹 Phase 1: Core Fundamentals & Theoretical Foundations (Days 1–3)
+- **Conceptual Intuition**: Core physical or mathematical definitions, fundamental laws, and standard SI units.
+- **Governing Equations**:
+  - Primary relationship formulation and parameter definitions (e.g. Ohm's Law $V = I \\cdot R$).
+  - Linear and non-linear behavioral models.
+- **Milestone Check**: Explain the core principle in your own words without referring to notes.
+
+#### 🔹 Phase 2: Systematic Component & Structural Analysis (Days 4–7)
+- **Sub-system Configurations**:
+  - Series, parallel, and compound network architectures.
+  - Boundary conditions, potential gradients, and conservation laws.
+- **Worked Problem Drills**: Solve 5 standard derivation and numerical problem sets.
+- **Milestone Check**: Achieve 80%+ accuracy on foundational calculation exercises.
+
+#### 🔹 Phase 3: Energy, Power & Practical Applications (Days 8–11)
+- **Energy Dissipation & Thermal Principles**: Work done, power conversion rates, and efficiency factors ($H = I^2Rt$, $P = VI$).
+- **Real-World Case Studies & Industry Applications**: Modern safety mechanisms, domestic/industrial load ratings, and failure mode analysis.
+- **Milestone Check**: Complete 1 application-based case study problem.
+
+#### 🔹 Phase 4: High-Yield Exam Review & Timed Mock Sprint (Days 12–14)
+- **Formula Cheat-Sheet**: Consolidate all formulas into a single 1-page quick-reference sheet.
+- **Past Exam Questions**: Target previous 5 years' board/university questions and common trick questions.
+- **Timed Diagnostic Test**: Complete a 15-minute diagnostic self-assessment.
+
+---
+
+### 💡 High-Yield Exam & Mastery Tips for ${topic}
+1. **Always State Units & Conventions**: Double-check sign conventions and standard units before calculating numericals.
+2. **Schematic Diagrams**: Always accompany derivations with neat, labeled diagrams to capture full schematic marks.
+3. **Common Pitfalls**: Watch out for intermediate rounding errors and non-ideal conditions.
+
+How would you like to proceed? Click any follow-up prompt below to test your knowledge or generate practice questions!`;
+  }
+
+  // 2. Simple / Intuitive Mode
+  if (mode === "simple") {
+    return `### 🌱 Simple & Intuitive Explanation: ${topic}
+
+Hello **${studentName}**! Here is the core concept of **${topic}** explained in plain, simple terms:
+
+#### 1. What is it in plain English?
+Imagine you have a complex task, and instead of doing everything at once, you break it down into small, manageable parts. **${topic}** is simply the mechanism or rule that coordinates this process so that each part connects logically without confusion.
+
+#### 2. Everyday Analogy
+Think of **${topic}** like building blocks:
+- Each block has a specific role and shape.
+- When stacked together in the correct sequence, they form a solid, reliable structure.
+- If one piece doesn't fit, you fix just that block without tearing down the entire build.
+
+#### 3. Key Takeaways
+- **The Core Rule:** Focus on the simplest base case first.
+- **Why it matters:** It saves you time, prevents repeated mistakes, and keeps systems clean.
+
+Would you like me to show you a concrete example or test this with a quick 1-minute question?`;
+  }
+
+  // 2. Step-by-step
+  if (mode === "step_by_step") {
+    return `### 🔢 Step-by-Step Breakdown: ${topic}
+
+Hello **${studentName}**, here is the structured step-by-step method to master **${topic}**:
+
+#### Step 1: Establish the Foundational Principles
+- Define the primary governing mechanism for ${topic}.
+- Identify all input parameters, state variables, and constant factors.
+- *Check:* Verify that all units and dimensional quantities match standard conventions.
+
+#### Step 2: Formulate the Model & Relationships
+- Apply the core governing equation or recurrence relation.
+- Separate known independent variables from target variables.
+- *Check:* Ensure no division by zero or boundary violations occur.
+
+#### Step 3: Execute Step-by-Step Problem Solving
+- Substitute values into the standardized formulation.
+- Simplify algebraic expressions systematically step by step.
+- Track each intermediate value to isolate arithmetic mistakes.
+
+#### Step 4: Validate with Sanity & Limit Checks
+- Check the extreme boundary conditions (e.g. at zero, infinity, or nominal limits).
+- Verify physical realism and plausible magnitude.
+
+---
+
+### 🎯 Immediate Practice Question
+*What happens to the core output in ${topic} if the primary input variable is doubled while holding other constraints constant?*`;
+  }
+
+  // 3. With Examples
+  if (mode === "with_examples") {
+    return `### 💡 Conceptual Explanation with Worked Examples: ${topic}
+
+Hello **${studentName}**! Let's explore **${topic}** with concrete, practical examples:
+
+#### 1. The Core Idea
+At its heart, **${topic}** describes how elements interact under specific constraints to produce predictable outcomes. 
+
+#### 2. Practical Worked Example
+Consider a standard scenario in **${topic}**:
+- **Given Parameters:** Input variable $X = 10$, proportionality constant $K = 2.5$.
+- **Governing Relation:** $Y = K \\times X$.
+- **Step-by-Step Execution:**
+  1. Substitute known variables: $Y = 2.5 \\times 10$
+  2. Compute result: $Y = 25$
+- **Physical Interpretation:** The response scales linearly with the applied input.
+
+#### 3. Real-World Engineering / Scientific Application
+In real-world systems, ${topic} is utilized in automated feedback loops, power distribution grids, and computational pipelines to ensure stability and efficiency under variable load conditions.
+
+---
+
+### 🚀 Self-Test Challenge
+Try calculating the output if $X$ drops by 50%. Let me know what you get!`;
+  }
+
+  // 4. Exam focused
+  if (mode === "exam_focused") {
+    return `### 🎓 High-Yield Exam Master Guide: ${topic}
+
+Hello **${studentName}**! Here is the exam-oriented blueprint for **${topic}**:
+
+#### 📌 Top Scoring Focus Areas
+- **Direct 5-Mark Derivations**: Practice writing the standard theoretical derivation from first principles.
+- **Key Formula Sheet**:
+  - Core Formula 1: Primary relation and conditions of applicability.
+  - Core Formula 2: Power / rate of change formulation.
+  - Core Formula 3: Efficiency and loss equations.
+
+#### ⚠️ Common Exam Traps & Examiner Expectations
+- **Forgetting Units**: Always write units with final numerical answers (e.g. Amperes, Volts, Joules, O(N log N)).
+- **Skipping Assumptions**: Explicitly mention assumptions (e.g. constant temperature, frictionless, uniform field).
+- **Labeling Diagrams**: Neat labeled sketches often carry 30–40% of question weightage.
+
+Would you like me to generate a 3-question exam-style practice test on ${topic}?`;
+  }
+
+  // 5. Default / Detailed Explanation
+  return `### 📘 Comprehensive Academic Guide: ${topic}
+
+Hello **${studentName}**! Based on your academic syllabus, here is the in-depth conceptual breakdown of **${topic}**:
+
+#### 1. Executive Conceptual Overview
+**${topic}** represents a fundamental pillar within your coursework. It provides the theoretical framework necessary to understand system behavior, quantitative relationships, and algorithmic or physical transformations.
+
+#### 2. Core Principles & Theoretical Framework
+- **Governing Axioms**: Foundational definitions and the underlying physical/mathematical logic.
+- **Key Analytical Formulations**: How variables depend on one another under steady-state and transient conditions.
+- **System Constraints**: Conservation principles, boundary limits, and valid operating ranges.
+
+#### 3. Practical Significance & Real-World Utility
+Understanding ${topic} enables you to:
+1. Design robust, efficient solutions to complex engineering and scientific problems.
+2. Analyze failure modes and performance bottlenecks systematically.
+3. Apply analytical reasoning to university exams and technical industry interviews.
+
+---
+
+### 🧠 Next Best Action
+- Spend 15 minutes reviewing worked example problems for ${topic}.
+- Attempt a quick 3-question diagnostic quiz to lock in retention.
+
+How can I assist your study of ${topic} today?`;
+}
+
