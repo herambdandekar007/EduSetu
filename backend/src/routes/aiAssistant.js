@@ -1,5 +1,5 @@
 import express from "express";
-import { chatCompletion, getProvider } from "../lib/aiProvider.js";
+import { chatCompletion } from "../lib/aiProvider.js";
 
 const router = express.Router();
 
@@ -21,12 +21,6 @@ const router = express.Router();
  */
 router.post("/", async (req, res) => {
   const { messages, type, userProfile } = req.body;
-
-  if (!getProvider().apiKey) {
-    return res
-      .status(500)
-      .json({ error: "No AI provider key configured (OPENROUTER_API_KEY or NVIDIA_API_KEY)" });
-  }
 
   // Build system prompt based on request type
   let systemPrompt = `You are the SMART EDUCATION AI Assistant — a helpful, empathetic, and knowledgeable guide for students and lifelong learners.
