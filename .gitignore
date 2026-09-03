@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build artifacts & caches
+dist/
+frontend/dist/
+.vite/
+frontend/node_modules/.vite/
+*.tsbuildinfo
+
+# Environment variables & local files
+.env
+.env.local
+.env.*.local
+*.local
+
+# Backend uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

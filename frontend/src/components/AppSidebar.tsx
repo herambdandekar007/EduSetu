@@ -63,9 +63,9 @@ const AppSidebar = () => {
           <GraduationCap className="h-5 w-5 text-white drop-shadow" />
         </div>
         <div>
-          <h1 className="text-[15px] font-extrabold text-white leading-tight">SMART EDUCATION AI</h1>
-          <p className="text-[10px] uppercase tracking-widest" style={{ color: "hsl(265,55%,68%)" }}>
-            Adaptive Learning Protocol
+          <h1 className="text-[17px] font-extrabold text-white leading-tight tracking-wide">EduSetu</h1>
+          <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "hsl(265,55%,68%)" }}>
+            Smart Education AI
           </p>
         </div>
       </div>

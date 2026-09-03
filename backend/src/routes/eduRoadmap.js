@@ -42,7 +42,7 @@ router.post("/generate", async (req, res) => {
       targetDuration = "6 Months",
     } = req.body;
 
-    const systemPrompt = `You are the EduRoadmap AI Engine for DivyangConnect. Return ONLY a valid JSON object.
+    const systemPrompt = `You are the EduRoadmap AI Engine for EduSetu. Return ONLY a valid JSON object.
 Schema:
 {
   "careerName": string,

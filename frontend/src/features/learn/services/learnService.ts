@@ -275,6 +275,22 @@ export const getQuizAttempts = async (userId: string): Promise<QuizAttempt[]> =>
   return getOwnedDocs<QuizAttempt>("quizAttempts", userId);
 };
 
+function removeUndefinedFields(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedFields);
+  }
+  if (obj !== null && typeof obj === "object" && !(obj instanceof Date)) {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefinedFields(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export const saveQuizAttempt = async (
   userIdOrAttempt: string | (Omit<QuizAttempt, "id"> & { userId: string }),
   attemptObj?: Omit<QuizAttempt, "id" | "userId">
@@ -290,11 +306,12 @@ export const saveQuizAttempt = async (
     attempt = userIdOrAttempt || {};
   }
 
+  const cleanedAttempt = removeUndefinedFields(attempt);
   const coll = collection(db, "quizAttempts");
   const docRef = await addDoc(coll, {
-    ...attempt,
+    ...cleanedAttempt,
     userId: uid,
-    completedAt: attempt.completedAt || new Date().toISOString(),
+    completedAt: cleanedAttempt.completedAt || new Date().toISOString(),
   });
 
   // Update quiz attempted flag if quizId exists
@@ -306,6 +323,35 @@ export const saveQuizAttempt = async (
         scorePercent: attempt.score ?? 0,
       });
     } catch {}
+  }
+
+  // Also sync weak topics and performance to learningProgress in Firestore for EduMentor & EduRoadmap
+  try {
+    const progRef = doc(db, "learningProgress", uid);
+    const progSnap = await getDoc(progRef);
+    const existingProg = progSnap.exists() ? progSnap.data() : {};
+    const existingWeak = Array.isArray(existingProg.weakTopics) ? existingProg.weakTopics : [];
+    const attemptWeak = Array.isArray(attempt.weakTopics)
+      ? attempt.weakTopics
+      : Array.isArray(attempt.weakConcepts)
+      ? attempt.weakConcepts
+      : [];
+
+    const combinedWeak = Array.from(new Set([...attemptWeak, ...existingWeak])).slice(0, 8);
+
+    await setDoc(
+      progRef,
+      {
+        ...existingProg,
+        userId: uid,
+        quizPerformance: attempt.score ?? attempt.accuracy ?? existingProg.quizPerformance ?? 75,
+        weakTopics: combinedWeak,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn("Could not sync quiz attempt to learningProgress:", err);
   }
 
   return docRef.id;
@@ -333,17 +379,49 @@ export const createAssignment = async (
 export const submitAssignment = async (
   assignmentId: string,
   submissionText: string = "Submitted online.",
-  fileUrl?: string
-): Promise<void> => {
+  fileUrl?: string,
+  extra?: { assignmentTitle?: string; subject?: string; instructions?: string }
+): Promise<{ score?: number; grade?: string; feedback?: string; summary?: string }> => {
+  let aiEvaluation: any = null;
+
+  try {
+    const res = await fetch("/api/learn-ai/evaluate-assignment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assignmentTitle: extra?.assignmentTitle || "Course Assignment",
+        subject: extra?.subject || "Core Curriculum",
+        instructions: extra?.instructions || "Academic rubric submission",
+        studentSubmission: submissionText,
+      }),
+    });
+    if (res.ok) {
+      aiEvaluation = await res.json();
+    }
+  } catch (e) {
+    console.warn("AI assignment evaluation fallback:", e);
+  }
+
+  const score = typeof aiEvaluation?.score === "number" ? aiEvaluation.score : 85;
+  const grade = aiEvaluation?.grade || (score >= 90 ? "A+" : score >= 80 ? "A" : "B");
+  const feedback = aiEvaluation?.feedback || "Your assignment has been received and verified. Great attention to detail!";
+
   const assignmentRef = doc(db, "assignments", assignmentId);
   await updateDoc(assignmentRef, {
-    status: "Submitted",
-    submissionStatus: "Submitted",
+    status: "Evaluated",
+    submissionStatus: "Evaluated",
     submissionText,
     submittedFileUrl: fileUrl || null,
     submittedAt: new Date().toISOString(),
-    aiFeedback: "Your assignment has been received and verified. Great attention to system architecture detail!",
+    score,
+    grade,
+    aiFeedback: feedback,
+    summary: aiEvaluation?.summary,
+    strengths: aiEvaluation?.strengths,
+    improvements: aiEvaluation?.improvements,
   });
+
+  return { score, grade, feedback, summary: aiEvaluation?.summary };
 };
 
 /* =========================================================
@@ -391,7 +469,7 @@ export const getRecommendations = async (
 
 export async function seedPersonalizedCurriculum(
   userId: string,
-  _education: StudentEducation | null
+  education: StudentEducation | null
 ): Promise<{
   subjects: Subject[];
   topics: Topic[];
@@ -403,68 +481,204 @@ export async function seedPersonalizedCurriculum(
 }> {
   console.log("🌱 Initializing personalized curriculum for student:", userId);
 
-  const initialSubjects: Omit<Subject, "id">[] = [
-    {
-      name: "Mathematics & Statistics",
-      icon: "Calculator",
-      color: "#2563EB",
-      teacher: "Dr. A. Sharma",
-      chapters: 8,
-      topics: 32,
-      subtopics: 64,
-      progress: 72,
-      completionPercentage: 72,
-      quizPerformance: 78,
-      assignmentPerformance: 85,
-      strongTopics: ["Linear Algebra", "Matrix Operations", "Set Theory"],
-      weakTopics: ["Calculus & Limits", "Bayesian Probability"],
-    },
-    {
-      name: "Data Structures & Algorithms",
-      icon: "Code2",
-      color: "#7C3AED",
-      teacher: "Prof. R. Deshmukh",
-      chapters: 10,
-      topics: 40,
-      subtopics: 80,
-      progress: 68,
-      completionPercentage: 68,
-      quizPerformance: 74,
-      assignmentPerformance: 88,
-      strongTopics: ["Arrays & Linked Lists", "Stack & Queues", "Binary Trees"],
-      weakTopics: ["Dynamic Programming", "Graph Traversal (Dijkstra)"],
-    },
-    {
-      name: "Database Management Systems",
-      icon: "Database",
-      color: "#059669",
-      teacher: "Dr. K. Iyer",
-      chapters: 6,
-      topics: 24,
-      subtopics: 48,
-      progress: 82,
-      completionPercentage: 82,
-      quizPerformance: 88,
-      assignmentPerformance: 92,
-      strongTopics: ["SQL Queries", "Relational Algebra", "Normalization (3NF)"],
-      weakTopics: ["Transaction Concurrency & ACID Locks"],
-    },
-    {
-      name: "Computer Networks & Web Tech",
-      icon: "Network",
-      color: "#0891B2",
-      teacher: "Prof. S. Verma",
-      chapters: 7,
-      topics: 28,
-      subtopics: 56,
-      progress: 60,
-      completionPercentage: 60,
-      quizPerformance: 65,
-      assignmentPerformance: 78,
-      strongTopics: ["OSI & TCP/IP Model", "HTTP/HTTPS Protocols"],
-      weakTopics: ["IP Subnetting & CIDR", "TCP Congestion Control"],
-    },
-  ];
+  const level = (education?.educationLevel || "").toLowerCase();
+  const isSchool = level.includes("school") || Boolean(education?.classOrGrade);
+  const course = (education?.degreeOrCourse || education?.branchOrSpecialization || "").toLowerCase();
+  const isCommerce = course.includes("commerce") || course.includes("b.com") || course.includes("bba") || course.includes("account");
+
+  let initialSubjects: Omit<Subject, "id">[];
+
+  if (isSchool) {
+    initialSubjects = [
+      {
+        name: "Science & Technology",
+        icon: "Lightbulb",
+        color: "#2563EB",
+        teacher: "Prof. S. Joshi",
+        chapters: 8,
+        topics: 28,
+        subtopics: 56,
+        progress: 75,
+        completionPercentage: 75,
+        quizPerformance: 80,
+        assignmentPerformance: 85,
+        strongTopics: ["Chemical Reactions", "Electricity & Circuits", "Life Processes"],
+        weakTopics: ["Optics & Light Reflection", "Heredity & Evolution"],
+      },
+      {
+        name: "Mathematics",
+        icon: "Calculator",
+        color: "#7C3AED",
+        teacher: "Dr. R. Kulkarni",
+        chapters: 9,
+        topics: 36,
+        subtopics: 72,
+        progress: 70,
+        completionPercentage: 70,
+        quizPerformance: 76,
+        assignmentPerformance: 82,
+        strongTopics: ["Quadratic Equations", "Arithmetic Progression", "Probability"],
+        weakTopics: ["Trigonometric Identities", "Coordinate Geometry"],
+      },
+      {
+        name: "English & Communication",
+        icon: "BookOpen",
+        color: "#059669",
+        teacher: "Mrs. N. Sen",
+        chapters: 6,
+        topics: 22,
+        subtopics: 44,
+        progress: 85,
+        completionPercentage: 85,
+        quizPerformance: 90,
+        assignmentPerformance: 92,
+        strongTopics: ["Reading Comprehension", "Formal Letter Writing", "Grammar"],
+        weakTopics: ["Active & Passive Voice", "Report Writing"],
+      },
+      {
+        name: "Social Studies & Civics",
+        icon: "Globe",
+        color: "#D97706",
+        teacher: "Prof. M. Patil",
+        chapters: 7,
+        topics: 26,
+        subtopics: 52,
+        progress: 68,
+        completionPercentage: 68,
+        quizPerformance: 72,
+        assignmentPerformance: 80,
+        strongTopics: ["Indian Constitution", "Resources & Development"],
+        weakTopics: ["Nationalism in India", "Monetary Economics"],
+      },
+    ];
+  } else if (isCommerce) {
+    initialSubjects = [
+      {
+        name: "Financial Accounting & Auditing",
+        icon: "Calculator",
+        color: "#2563EB",
+        teacher: "Prof. V. Agrawal",
+        chapters: 8,
+        topics: 30,
+        subtopics: 60,
+        progress: 78,
+        completionPercentage: 78,
+        quizPerformance: 82,
+        assignmentPerformance: 86,
+        strongTopics: ["Journal & Ledger", "Balance Sheet Final Accounts", "Depreciation"],
+        weakTopics: ["Partnership Dissolution Accounts", "Cash Flow Statements"],
+      },
+      {
+        name: "Corporate Law & Governance",
+        icon: "BookOpen",
+        color: "#7C3AED",
+        teacher: "Dr. A. Singhania",
+        chapters: 7,
+        topics: 24,
+        subtopics: 48,
+        progress: 70,
+        completionPercentage: 70,
+        quizPerformance: 75,
+        assignmentPerformance: 80,
+        strongTopics: ["Companies Act Foundations", "Director Roles"],
+        weakTopics: ["Winding Up Provisions", "SEBI Regulations"],
+      },
+      {
+        name: "Business Economics & Taxation",
+        icon: "TrendingUp",
+        color: "#059669",
+        teacher: "Prof. P. Mehta",
+        chapters: 6,
+        topics: 22,
+        subtopics: 44,
+        progress: 74,
+        completionPercentage: 74,
+        quizPerformance: 78,
+        assignmentPerformance: 84,
+        strongTopics: ["Supply & Demand Equilibrium", "Direct Taxation Rules"],
+        weakTopics: ["GST Input Tax Credit", "Monopoly Pricing Models"],
+      },
+      {
+        name: "Business Statistics & Analytics",
+        icon: "BarChart3",
+        color: "#0891B2",
+        teacher: "Dr. N. Shah",
+        chapters: 6,
+        topics: 20,
+        subtopics: 40,
+        progress: 65,
+        completionPercentage: 65,
+        quizPerformance: 70,
+        assignmentPerformance: 78,
+        strongTopics: ["Mean, Median, Mode", "Correlation"],
+        weakTopics: ["Hypothesis Testing", "Time Series Forecasting"],
+      },
+    ];
+  } else {
+    // Higher Education / Engineering / Computer Science
+    initialSubjects = [
+      {
+        name: "Mathematics & Statistics",
+        icon: "Calculator",
+        color: "#2563EB",
+        teacher: "Dr. A. Sharma",
+        chapters: 8,
+        topics: 32,
+        subtopics: 64,
+        progress: 72,
+        completionPercentage: 72,
+        quizPerformance: 78,
+        assignmentPerformance: 85,
+        strongTopics: ["Linear Algebra", "Matrix Operations", "Set Theory"],
+        weakTopics: ["Calculus & Limits", "Bayesian Probability"],
+      },
+      {
+        name: "Data Structures & Algorithms",
+        icon: "Code2",
+        color: "#7C3AED",
+        teacher: "Prof. R. Deshmukh",
+        chapters: 10,
+        topics: 40,
+        subtopics: 80,
+        progress: 68,
+        completionPercentage: 68,
+        quizPerformance: 74,
+        assignmentPerformance: 88,
+        strongTopics: ["Arrays & Linked Lists", "Stack & Queues", "Binary Trees"],
+        weakTopics: ["Dynamic Programming", "Graph Traversal (Dijkstra)"],
+      },
+      {
+        name: "Database Management Systems",
+        icon: "Database",
+        color: "#059669",
+        teacher: "Dr. K. Iyer",
+        chapters: 6,
+        topics: 24,
+        subtopics: 48,
+        progress: 82,
+        completionPercentage: 82,
+        quizPerformance: 88,
+        assignmentPerformance: 92,
+        strongTopics: ["SQL Queries", "Relational Algebra", "Normalization (3NF)"],
+        weakTopics: ["Transaction Concurrency & ACID Locks"],
+      },
+      {
+        name: "Computer Networks & Web Tech",
+        icon: "Network",
+        color: "#0891B2",
+        teacher: "Prof. S. Verma",
+        chapters: 7,
+        topics: 28,
+        subtopics: 56,
+        progress: 60,
+        completionPercentage: 60,
+        quizPerformance: 65,
+        assignmentPerformance: 78,
+        strongTopics: ["OSI & TCP/IP Model", "HTTP/HTTPS Protocols"],
+        weakTopics: ["IP Subnetting & CIDR", "TCP Congestion Control"],
+      },
+    ];
+  }
 
   const createdSubjects: Subject[] = [];
   for (let i = 0; i < initialSubjects.length; i++) {

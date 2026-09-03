@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  addDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -178,6 +179,37 @@ export async function saveUserRoadmap(
 }
 
 /**
+ * Helper to sync mastered skills from completed roadmap milestones to the student's EduID profile & studentSkills collection
+ */
+async function syncMasteredSkillsToEduProfile(userId: string, skills?: string[]): Promise<void> {
+  if (!skills || !skills.length || !userId) return;
+  try {
+    const profileRef = doc(db, "profiles", userId);
+    const snap = await getDoc(profileRef);
+    if (snap.exists()) {
+      const existing = snap.data().skills || [];
+      const updated = Array.from(new Set([...existing, ...skills]));
+      await updateDoc(profileRef, { skills: updated });
+    }
+
+    // Also persist to studentSkills collection
+    for (const sk of skills) {
+      await addDoc(collection(db, "studentSkills"), {
+        userId,
+        name: sk,
+        category: "Technical",
+        level: "Advanced",
+        status: "Mastered",
+        source: "EduRoadmap",
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (e) {
+    console.warn("syncMasteredSkillsToEduProfile warning:", e);
+  }
+}
+
+/**
  * 3. Update single Roadmap Step status & progress
  */
 export async function updateStepProgress(
@@ -186,9 +218,14 @@ export async function updateStepProgress(
   updatedFields: Partial<RoadmapStep>,
   allSteps: RoadmapStep[]
 ): Promise<RoadmapStep[]> {
+  let completedStepSkills: string[] | undefined;
+
   const newSteps = allSteps.map((s) => {
     if (s.id === stepId) {
       const isCompleted = updatedFields.status === "completed" || updatedFields.progress === 100;
+      if (isCompleted && s.skillsRequired?.length) {
+        completedStepSkills = s.skillsRequired;
+      }
       return {
         ...s,
         ...updatedFields,
@@ -210,6 +247,10 @@ export async function updateStepProgress(
       completedSteps: completedCount,
       updatedAt: new Date().toISOString(),
     });
+
+    if (completedStepSkills?.length) {
+      await syncMasteredSkillsToEduProfile(userId, completedStepSkills);
+    }
   } catch (err) {
     console.warn("updateStepProgress firestore sync warning:", err);
   }
@@ -226,6 +267,8 @@ export async function toggleStepTask(
   taskId: string,
   allSteps: RoadmapStep[]
 ): Promise<RoadmapStep[]> {
+  let completedStepSkills: string[] | undefined;
+
   const newSteps = allSteps.map((s) => {
     if (s.id === stepId) {
       const updatedTasks = s.practiceTasks.map((t) =>
@@ -236,6 +279,10 @@ export async function toggleStepTask(
         ? Math.round((doneCount / updatedTasks.length) * 100)
         : s.progress;
       const isCompleted = stepProg === 100;
+
+      if (isCompleted && s.skillsRequired?.length) {
+        completedStepSkills = s.skillsRequired;
+      }
 
       return {
         ...s,
@@ -258,6 +305,10 @@ export async function toggleStepTask(
       completedSteps: completedCount,
       updatedAt: new Date().toISOString(),
     });
+
+    if (completedStepSkills?.length) {
+      await syncMasteredSkillsToEduProfile(userId, completedStepSkills);
+    }
   } catch (err) {
     console.warn("toggleStepTask firestore sync warning:", err);
   }

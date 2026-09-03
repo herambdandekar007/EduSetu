@@ -21,6 +21,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/integrations/firebase/client";
 import {
   RoadmapOverview,
   RoadmapTimeline,
@@ -174,7 +176,7 @@ export const EduRoadmapPage: React.FC = () => {
   };
 
   const handleStartLearning = (step: RoadmapStep) => {
-    navigate("/education");
+    navigate(`/learn?topic=${encodeURIComponent(step.title)}`);
   };
 
   const handleAskMentor = (stepOrPrompt: RoadmapStep | string) => {
@@ -191,6 +193,16 @@ export const EduRoadmapPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // Persist career interest to profile document
+      try {
+        await updateDoc(doc(db, "profiles", user.uid), {
+          career_interest: career.title,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn("Could not update career_interest in profile:", err);
+      }
+
       const generated = await generateAIRoadmap({
         careerName: career.title,
         educationLevel: profile?.education_level || "Undergraduate",
@@ -303,11 +315,10 @@ export const EduRoadmapPage: React.FC = () => {
           icon={<Map className="h-5 w-5 text-white" />}
         >
           <Button
-            variant="outline"
             size="sm"
             onClick={() => loadData(true)}
             disabled={isRegenerating}
-            className="gap-2 rounded-xl border-white/20 text-white hover:bg-white/10"
+            className="gap-2 rounded-xl bg-white hover:bg-slate-100 text-indigo-950 font-semibold shadow-sm border border-white/40 transition-all text-xs h-9 px-3.5 disabled:opacity-60 [&_svg]:text-indigo-600 shrink-0"
           >
             <RefreshCw className={`h-4 w-4 ${isRegenerating ? "animate-spin" : ""}`} />
             Regenerate Roadmap

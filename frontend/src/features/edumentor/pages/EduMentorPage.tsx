@@ -2,6 +2,7 @@
 // Dedicated EduMentor AI workspace connecting all personal education mentoring modules.
 
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Bot,
   LayoutDashboard,
@@ -43,6 +44,7 @@ import {
 
 export const EduMentorPage: React.FC = () => {
   const { user, profile } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [context, setContext] = useState<StudentLearningContext | null>(null);
@@ -51,6 +53,15 @@ export const EduMentorPage: React.FC = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatInitialPrompt, setChatInitialPrompt] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Initialize prompt from URL query if present
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (prompt) {
+      setChatInitialPrompt(prompt);
+      setActiveTab("chat");
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     if (!user) return;
@@ -150,10 +161,9 @@ export const EduMentorPage: React.FC = () => {
           icon={<Bot className="h-5 w-5 text-white" />}
         >
           <Button
-            variant="outline"
             size="sm"
             onClick={loadData}
-            className="gap-2 rounded-xl border-white/20 text-white hover:bg-white/10"
+            className="gap-2 rounded-xl bg-white hover:bg-slate-100 text-indigo-950 font-semibold shadow-sm border border-white/40 transition-all text-xs h-9 px-3.5 [&_svg]:text-indigo-600 shrink-0"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh Learning Data

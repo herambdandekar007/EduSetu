@@ -737,7 +737,7 @@ const AccessibilityPage = () => {
                     <Play className="h-4 w-4" /> Read This Page
                   </Button>
                   <Button size="sm" variant="outline" disabled={isSpeaking} className="gap-2"
-                    onClick={() => speak("Welcome to DivyangConnectAI. Text-to-speech is working correctly.")}>
+                    onClick={() => speak("Welcome to EduSetu. Text-to-speech is working correctly.")}>
                     <Volume2 className="h-4 w-4" /> Test Voice
                   </Button>
                   {isSpeaking && (
