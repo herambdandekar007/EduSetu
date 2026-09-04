@@ -57,16 +57,26 @@ export const getUserNotifications = async (
 
     const q = query(
       collection(db, NOTIFICATIONS_COLLECTION),
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
-      limit(maxResults)
+      where("userId", "==", userId)
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
+    const docs = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as VaultNotification[];
+
+    return docs
+      .sort((a, b) => {
+        const timeA = (a.createdAt as any)?.seconds
+          ? (a.createdAt as any).seconds * 1000
+          : new Date(a.createdAt || 0).getTime();
+        const timeB = (b.createdAt as any)?.seconds
+          ? (b.createdAt as any).seconds * 1000
+          : new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      })
+      .slice(0, maxResults);
   } catch (error) {
     console.error("[EduVault] Failed to get notifications:", error);
     return [];

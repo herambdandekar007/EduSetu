@@ -23,6 +23,9 @@ export async function analyzeSpokenSpeech(params: {
   const { transcript, topic, durationSeconds = 30, language = "English" } = params;
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second client timeout
+
     const res = await fetch(`${BASE_URL}/api/speaking/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32,7 +35,10 @@ export async function analyzeSpokenSpeech(params: {
         durationSeconds,
         language,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -56,7 +62,7 @@ export async function analyzeSpokenSpeech(params: {
                 category: m.category || "Grammar",
               }))
             : data.corrections || [],
-          correctedSentence: data.correctedSentence || data.sentence?.correction,
+          correctedSentence: data.correctedSentence || data.sentence?.correction || transcript,
           strengths: data.strengths || ["Clear articulation", "Confident speaking pacing", "Good structural flow"],
           weaknesses: data.weaknesses || ["Minor filler word usage", "Sentence structure complexity"],
           recommendations: data.recommendations || [
@@ -73,7 +79,7 @@ export async function analyzeSpokenSpeech(params: {
   }
 
   // Resilient heuristic synthesis
-  return synthesizeSpeechEvaluation(transcript, durationSeconds);
+  return synthesizeSpeechEvaluation(transcript, durationSeconds, language);
 }
 
 /**
@@ -151,45 +157,52 @@ export async function chatWithSpeakingMentor(params: {
 }
 
 /** Offline heuristic analysis engine */
-function synthesizeSpeechEvaluation(transcript: string, durationSeconds: number): SpeechAnalysisResult {
+function synthesizeSpeechEvaluation(
+  transcript: string,
+  durationSeconds: number,
+  language: string = "English"
+): SpeechAnalysisResult {
   const words = transcript.trim().split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const paceWpm = durationSeconds > 0 ? Math.round((wordCount / durationSeconds) * 60) : 115;
+  const isEnglish = !language || language.toLowerCase().includes("english") || language.toLowerCase().includes("en");
 
   const corrections: SpeechAnalysisResult["corrections"] = [];
 
-  if (/\b(gonna|wanna|dunno)\b/i.test(transcript)) {
-    corrections.push({
-      original: "gonna / wanna",
-      suggested: "going to / want to",
-      explanation: "In formal and interview communication, articulate complete verb forms.",
-      category: "Word Choice",
-    });
-  }
+  if (isEnglish) {
+    if (/\b(gonna|wanna|dunno)\b/i.test(transcript)) {
+      corrections.push({
+        original: "gonna / wanna",
+        suggested: "going to / want to",
+        explanation: "In formal and interview communication, articulate complete verb forms.",
+        category: "Word Choice",
+      });
+    }
 
-  if (/\b(he|she|it)\s+don't\b/i.test(transcript)) {
-    corrections.push({
-      original: "don't",
-      suggested: "doesn't",
-      explanation: "Third-person singular subjects (he/she/it) require 'doesn't'.",
-      category: "Grammar",
-    });
-  }
+    if (/\b(he|she|it)\s+don't\b/i.test(transcript)) {
+      corrections.push({
+        original: "don't",
+        suggested: "doesn't",
+        explanation: "Third-person singular subjects (he/she/it) require 'doesn't'.",
+        category: "Grammar",
+      });
+    }
 
-  if (/\b(i am go|i am study)\b/i.test(transcript)) {
-    corrections.push({
-      original: "am go / am study",
-      suggested: "am going / am studying",
-      explanation: "Continuous present tense requires the '-ing' suffix after 'am/is/are'.",
-      category: "Tense",
-    });
+    if (/\b(i am go|i am study)\b/i.test(transcript)) {
+      corrections.push({
+        original: "am go / am study",
+        suggested: "am going / am studying",
+        explanation: "Continuous present tense requires the '-ing' suffix after 'am/is/are'.",
+        category: "Tense",
+      });
+    }
   }
 
   const grammarScore = corrections.length === 0 ? 88 : Math.max(50, 88 - corrections.length * 12);
   const fluencyScore = Math.min(95, Math.max(65, Math.round(100 - Math.abs(130 - paceWpm) * 0.4)));
-  const pronunciationScore = 80;
-  const vocabularyScore = wordCount > 15 ? 85 : 72;
-  const confidenceScore = wordCount > 10 ? 84 : 70;
+  const pronunciationScore = 82;
+  const vocabularyScore = wordCount > 15 ? 85 : 75;
+  const confidenceScore = wordCount > 10 ? 84 : 76;
   const overallScore = Math.round(
     pronunciationScore * 0.25 +
     fluencyScore * 0.25 +
@@ -209,25 +222,27 @@ function synthesizeSpeechEvaluation(transcript: string, durationSeconds: number)
     confidenceScore,
     speakingPaceWpm: paceWpm,
     corrections,
-    correctedSentence: transcript
-      .replace(/\bgonna\b/gi, "going to")
-      .replace(/\bwanna\b/gi, "want to")
-      .replace(/\bhe don't\b/gi, "he doesn't")
-      .replace(/\bshe don't\b/gi, "she doesn't"),
+    correctedSentence: isEnglish
+      ? transcript
+          .replace(/\bgonna\b/gi, "going to")
+          .replace(/\bwanna\b/gi, "want to")
+          .replace(/\bhe don't\b/gi, "he doesn't")
+          .replace(/\bshe don't\b/gi, "she doesn't")
+      : transcript,
     strengths: [
-      "Good voice projection and natural speaking rhythm",
-      "Clear articulation of primary subject vocabulary",
-      "Steady pacing without abrupt halts",
+      "Good voice clarity and consistent vocal volume",
+      "Clear articulation of primary ideas and keywords",
+      "Natural conversational flow without harsh pauses",
     ],
-    weaknesses: corrections.length > 0 ? ["Minor verb tense agreement consistency"] : ["Slight hesitation on opening phrase"],
+    weaknesses: corrections.length > 0 ? ["Minor grammatical agreement consistency"] : ["Can add more supporting descriptive phrases"],
     recommendations: [
-      "Practice pausing for 1 second between key sentences rather than using filler words",
-      "Read short professional paragraphs aloud to reinforce natural cadence",
+      "Practice taking a 1-second pause between clauses to organize key thoughts",
+      "Record short daily answers to common questions to build spontaneous speaking fluency",
     ],
     feedback:
       overallScore >= 80
-        ? "Excellent speaking flow and vocabulary clarity! You delivered your thoughts with confidence."
-        : "Good practice effort! Focus on complete verb forms and steady sentence pacing.",
+        ? "Excellent speaking flow and pronunciation clarity! You communicated your thoughts with confidence."
+        : "Good practice effort! Keep practicing to strengthen your sentence structure and speaking flow.",
     createdAt: new Date().toISOString(),
   };
 }

@@ -27,6 +27,8 @@ export const logDocumentActivity = async ({
       });
     }
 
+    const deviceInfo = typeof navigator !== "undefined" ? navigator.userAgent : "Web Browser";
+
     const docRef = await addDoc(collection(db, ACTIVITIES_COLLECTION), {
       userId,
       documentId: documentId || null,

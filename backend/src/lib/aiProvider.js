@@ -32,23 +32,32 @@ const OPENROUTER_ACTIVE_MODELS = [
 ];
 
 const GROQ_ACTIVE_MODELS = [
-  "llama-3.1-8b-instant",
-  "llama-3.2-3b-preview",
-  "llama-3.2-1b-preview",
-  "llama-3.3-70b-versatile",
-  "llama-3.2-11b-vision-preview",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3.6-27b",
+  "openai/gpt-oss-120b",
 ];
 
 const NVIDIA_ACTIVE_MODELS = [
-  "meta/llama-3.1-8b-instruct",
-  "meta/llama-3.1-70b-instruct",
-  "meta/llama-3.2-90b-vision-instruct",
+  "deepseek-ai/deepseek-v4-flash-0731",
+  "ai21labs/jamba-1.5-large-instruct",
 ];
 
 export function getActiveProviders() {
   const providers = [];
 
-  // 1. Google Gemini API (Free tier via Google AI Studio / Gemini API key)
+  // 1. Groq (Ultra-fast, sub-second inference) - Primary provider
+  if (process.env.GROQ_API_KEY) {
+    providers.push({
+      name: "groq",
+      baseUrl: GROQ_BASE_URL,
+      apiKey: process.env.GROQ_API_KEY,
+      defaultModel: "openai/gpt-oss-20b",
+      fallbacks: GROQ_ACTIVE_MODELS,
+      extraHeaders: {},
+    });
+  }
+
+  // 2. Google Gemini API (Free tier via Google AI Studio / Gemini API key)
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (geminiKey) {
     providers.push({
@@ -61,7 +70,7 @@ export function getActiveProviders() {
     });
   }
 
-  // 2. OpenRouter (Multi-model free tier with automatic routing)
+  // 3. OpenRouter (Secondary multi-model tier)
   if (process.env.OPENROUTER_API_KEY) {
     providers.push({
       name: "openrouter",
@@ -73,18 +82,6 @@ export function getActiveProviders() {
         "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:8081",
         "X-Title": process.env.OPENROUTER_SITE_NAME || "EduSetu",
       },
-    });
-  }
-
-  // 3. Groq (High-speed LLaMA inference)
-  if (process.env.GROQ_API_KEY) {
-    providers.push({
-      name: "groq",
-      baseUrl: GROQ_BASE_URL,
-      apiKey: process.env.GROQ_API_KEY,
-      defaultModel: "llama-3.1-8b-instant",
-      fallbacks: GROQ_ACTIVE_MODELS,
-      extraHeaders: {},
     });
   }
 
@@ -106,7 +103,7 @@ export function getActiveProviders() {
       name: "nvidia",
       baseUrl: NVIDIA_BASE_URL,
       apiKey: process.env.NVIDIA_API_KEY,
-      defaultModel: "meta/llama-3.1-8b-instruct",
+      defaultModel: "deepseek-ai/deepseek-v4-flash-0731",
       fallbacks: NVIDIA_ACTIVE_MODELS,
       extraHeaders: {},
     });
@@ -152,7 +149,8 @@ export async function chatCompletion({
       });
     }
 
-    for (const targetModel of candidateModels) {
+    // Limit to at most 2 candidate models per provider to avoid long delays
+    for (const targetModel of candidateModels.slice(0, 2)) {
       try {
         const res = await requestOnce(provider, targetModel, {
           messages,
@@ -173,10 +171,11 @@ export async function chatCompletion({
 }
 
 async function requestOnce(provider, model, { messages, maxTokens, temperature, json, stream }) {
+  const safeMaxTokens = Math.min(maxTokens || 1024, 1024);
   const body = {
     model,
     messages,
-    max_tokens: maxTokens,
+    max_tokens: safeMaxTokens,
     temperature,
     stream,
   };
@@ -194,6 +193,7 @@ async function requestOnce(provider, model, { messages, maxTokens, temperature, 
       ...provider.extraHeaders,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(6000), // 6-second timeout per candidate request
   });
 
   if (!response.ok) {
