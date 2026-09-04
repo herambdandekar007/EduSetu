@@ -57,6 +57,7 @@ import {
   fetchAINextSteps,
   recalibrateAdaptiveRoadmap,
 } from "../services/roadmapAIService";
+import { toast } from "sonner";
 
 export const EduRoadmapPage: React.FC = () => {
   const navigate = useNavigate();
@@ -78,7 +79,11 @@ export const EduRoadmapPage: React.FC = () => {
   // Load or generate initial roadmap
   const loadData = async (forceRegenerate = false) => {
     if (!user) return;
-    setIsLoading(true);
+    if (!forceRegenerate) {
+      setIsLoading(true);
+    } else {
+      setIsRegenerating(true);
+    }
 
     try {
       // 1. Fetch available career paths
@@ -96,16 +101,24 @@ export const EduRoadmapPage: React.FC = () => {
         setNextSteps(stored.nextSteps);
         setProjects(stored.projects);
       } else {
+        // Determine active target career (preserve current view or profile interest)
+        const targetCareer = forceRegenerate && roadmap?.careerName
+          ? roadmap.careerName
+          : (stored.roadmap?.careerName || profile?.career_interest || "AI & Machine Learning Specialist");
+        
+        const targetCareerId = forceRegenerate && roadmap?.careerId
+          ? roadmap.careerId
+          : (stored.roadmap?.careerId || (targetCareer.toLowerCase().includes("ai") ? "ai-engineer" : "software-engineer"));
+
         // Generate new AI-calibrated roadmap
-        setIsRegenerating(true);
         const generated = await generateAIRoadmap({
-          careerName: profile?.career_interest || "Software Engineering & Fullstack",
+          careerName: targetCareer,
           educationLevel: profile?.education_level || "Undergraduate",
           course: profile?.course || "Computer Science",
-          currentSkills: profile?.skills || ["Programming Basics", "Problem Solving"],
-          weakTopics: ["Dynamic Programming", "Relational Normalization"],
-          strongTopics: ["Arrays", "OOP Principles"],
-          learningGaps: ["Operating Systems & Concurrency"],
+          currentSkills: (skills.length ? skills.map((s) => s.name) : profile?.skills) || ["Python", "Programming Basics", "Problem Solving"],
+          weakTopics: (skillGaps.length ? skillGaps.map((g) => g.skill) : ["Dynamic Programming", "Neural Networks", "Relational Normalization"]),
+          strongTopics: ["Data Structures", "OOP Principles"],
+          learningGaps: ["Advanced Frameworks & Architecture"],
         });
 
         // Generate AI Next steps
@@ -113,14 +126,14 @@ export const EduRoadmapPage: React.FC = () => {
           careerName: generated.careerName,
           currentStage: generated.currentStage,
           completedStepTitles: generated.steps.filter((s) => s.status === "completed").map((s) => s.title),
-          weakTopics: ["Dynamic Programming", "Relational Normalization"],
+          weakTopics: ["Dynamic Programming", "Neural Networks"],
         });
 
         const newRoadmap: UserEduRoadmap = {
           id: user.uid,
           userId: user.uid,
           eduId: profile?.edu_id,
-          careerId: "software-engineer",
+          careerId: targetCareerId,
           careerName: generated.careerName,
           currentStage: generated.currentStage,
           overallProgress: generated.overallProgress,
@@ -129,7 +142,7 @@ export const EduRoadmapPage: React.FC = () => {
           status: "active",
           totalSteps: generated.steps.length,
           completedSteps: generated.steps.filter((s) => s.status === "completed").length,
-          createdAt: new Date().toISOString(),
+          createdAt: roadmap?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
 
@@ -149,9 +162,16 @@ export const EduRoadmapPage: React.FC = () => {
           projects: generated.projects,
           nextSteps: generatedNext,
         });
+
+        if (forceRegenerate) {
+          toast.success("✨ EduRoadmap recalibrated & updated with AI!");
+        }
       }
     } catch (err) {
       console.error("EduRoadmap loadData error:", err);
+      if (forceRegenerate) {
+        toast.error("Failed to regenerate roadmap. Please try again.");
+      }
     } finally {
       setIsLoading(false);
       setIsRegenerating(false);

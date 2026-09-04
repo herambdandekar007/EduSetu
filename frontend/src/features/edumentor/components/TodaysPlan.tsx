@@ -28,6 +28,7 @@ import type {
 } from "../types/mentor.types";
 import { togglePlanTaskStatus, saveDailyStudyPlan } from "../services/mentorService";
 import { generateAIStudyPlan } from "../services/mentorAIService";
+import { toast } from "sonner";
 
 interface TodaysPlanProps {
   context: StudentLearningContext;
@@ -92,8 +93,10 @@ export const TodaysPlan: React.FC<TodaysPlanProps> = ({
 
       await saveDailyStudyPlan(generated);
       onUpdatePlan(generated);
+      toast.success("✨ New personalized study plan generated!");
     } catch (err) {
       console.error("Plan generation error:", err);
+      toast.error("Failed to generate new study plan. Please try again.");
     } finally {
       setIsGenerating(false);
     }

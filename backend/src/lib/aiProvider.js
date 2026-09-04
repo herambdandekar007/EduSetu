@@ -316,54 +316,256 @@ function generateSyntheticResponse({ messages = [], json = false, stream = false
         summary: "You qualify for major Central & State Government PWD schemes.",
         totalEligible: 2,
       });
-    } else if (combined.includes("dailyplans") || combined.includes("study plan")) {
+    } else if (combined.includes("dailyplans") || combined.includes("study plan") || combined.includes("generate-plan")) {
+      // Extract contextual info from prompt if present
+      const studentMatch = userMsg.match(/Student:\s*([^\n\r]+)/i);
+      const studentName = studentMatch ? studentMatch[1].trim() : "Student";
+      
+      const subjectMatch = userMsg.match(/Focus Subjects:\s*([^\n\r]+)/i);
+      let extractedSubjects = subjectMatch && !subjectMatch[1].toLowerCase().includes("all current")
+        ? subjectMatch[1].split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      if (!extractedSubjects.length) {
+        extractedSubjects = ["Data Structures & Algorithms", "Mathematics", "Operating Systems", "Database Systems", "Computer Networks"];
+      }
+
+      const weakMatch = userMsg.match(/Weak (?:Areas|Topics)(?: to prioritze)?:\s*([^\n\r]+)/i);
+      let extractedWeak = weakMatch && !weakMatch[1].toLowerCase().includes("core topics")
+        ? weakMatch[1].split(",").map((w) => w.trim()).filter(Boolean)
+        : [];
+      if (!extractedWeak.length) {
+        extractedWeak = ["Dynamic Programming", "Trees & Graph Traversals", "Calculus & Optimization", "SQL Joins & Indexing", "Memory Management & Paging", "Recursion & Backtracking"];
+      }
+
+      // Pick randomly / rotate based on timestamp
+      const randIdx = Math.floor(Math.random() * 5);
+      const sub1 = extractedSubjects[randIdx % extractedSubjects.length] || "Core Curriculum";
+      const sub2 = extractedSubjects[(randIdx + 1) % extractedSubjects.length] || extractedSubjects[0] || "Advanced Theory";
+      const weak1 = extractedWeak[randIdx % extractedWeak.length] || "Key Principles";
+      const weak2 = extractedWeak[(randIdx + 1) % extractedWeak.length] || "Problem Solving";
+
+      const themes = [
+        {
+          title: "Personalized Daily Study & Revision Plan",
+          summary: `Balanced schedule customized for ${studentName}, emphasizing active recall in ${weak1} and hands-on practice.`,
+          focusTheme: "Core Concept Mastery & Weakness Elimination",
+          tasks: [
+            {
+              id: `task-${Date.now()}-1`,
+              taskName: `Revise Key Formulas & Theory: ${weak1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 40,
+              difficulty: "Medium",
+              priority: "High",
+              learningObjective: `Review high-yield conceptual foundations and definitions in ${weak1}.`,
+            },
+            {
+              id: `task-${Date.now()}-2`,
+              taskName: `Targeted Problem Solving Drill: ${weak1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 50,
+              difficulty: "Hard",
+              priority: "High",
+              learningObjective: "Solve 8-10 analytical problem sets and analyze edge cases.",
+            },
+            {
+              id: `task-${Date.now()}-3`,
+              taskName: `Advance & Consolidate: ${sub2}`,
+              subject: sub2,
+              topic: weak2,
+              durationMinutes: 40,
+              difficulty: "Medium",
+              priority: "Medium",
+              learningObjective: `Complete structured summary notes and worked examples for ${weak2}.`,
+            },
+            {
+              id: `task-${Date.now()}-4`,
+              taskName: `Self-Check Diagnostic Quiz: ${sub1}`,
+              subject: sub1,
+              topic: "Retention Check",
+              durationMinutes: 20,
+              difficulty: "Easy",
+              priority: "Low",
+              learningObjective: "Take a quick 5-question diagnostic quiz to verify retention.",
+            },
+          ],
+        },
+        {
+          title: "Intensive Practice & Problem Sprint",
+          summary: `High-yield problem solving sprint tailored for ${studentName}, focusing on ${sub1} and ${sub2}.`,
+          focusTheme: "Analytical Problem Solving & Speed Drills",
+          tasks: [
+            {
+              id: `task-${Date.now()}-1`,
+              taskName: `Worked Examples Breakdown: ${sub1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 45,
+              difficulty: "Medium",
+              priority: "High",
+              learningObjective: `Deconstruct 5 standard university/exam questions step-by-step in ${weak1}.`,
+            },
+            {
+              id: `task-${Date.now()}-2`,
+              taskName: `Timed Mock Exercise: ${weak1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 45,
+              difficulty: "Hard",
+              priority: "High",
+              learningObjective: "Practice solving multi-step questions under 45-minute timed exam constraints.",
+            },
+            {
+              id: `task-${Date.now()}-3`,
+              taskName: `Concept Mapping & Flashcards: ${sub2}`,
+              subject: sub2,
+              topic: weak2,
+              durationMinutes: 30,
+              difficulty: "Easy",
+              priority: "Medium",
+              learningObjective: `Review active recall flashcards and create a 1-page formula cheat sheet.`,
+            },
+          ],
+        },
+        {
+          title: "Exam Readiness & Mistake Elimination Plan",
+          summary: `Focused session targeting error logs, tricky concepts in ${weak1}, and syllabus milestones for ${studentName}.`,
+          focusTheme: "Mistake Log Review & High-Weightage Revision",
+          tasks: [
+            {
+              id: `task-${Date.now()}-1`,
+              taskName: `Mistake Journal & Error Review: ${weak1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 35,
+              difficulty: "Medium",
+              priority: "High",
+              learningObjective: `Analyze past quiz mistakes and solidify correct problem patterns in ${weak1}.`,
+            },
+            {
+              id: `task-${Date.now()}-2`,
+              taskName: `Core Derivation & Theorem Mastery: ${sub2}`,
+              subject: sub2,
+              topic: weak2,
+              durationMinutes: 50,
+              difficulty: "Hard",
+              priority: "High",
+              learningObjective: `Write out complete mathematical/logical derivations without referencing notes.`,
+            },
+            {
+              id: `task-${Date.now()}-3`,
+              taskName: `Diagnostic Self-Assessment: ${sub1}`,
+              subject: sub1,
+              topic: "Diagnostic Check",
+              durationMinutes: 25,
+              difficulty: "Medium",
+              priority: "Medium",
+              learningObjective: "Complete a 10-question mixed multiple-choice assessment with instant review.",
+            },
+          ],
+        },
+        {
+          title: "Applied Concept & Comprehensive Review Plan",
+          summary: `Holistic schedule for ${studentName} combining theoretical depth in ${sub1} with rapid practice in ${sub2}.`,
+          focusTheme: "Theoretical Depth & Rapid Active Recall",
+          tasks: [
+            {
+              id: `task-${Date.now()}-1`,
+              taskName: `Deep Concept Synthesis: ${sub1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 45,
+              difficulty: "Medium",
+              priority: "High",
+              learningObjective: `Break down the governing equations, constraints, and architecture of ${weak1}.`,
+            },
+            {
+              id: `task-${Date.now()}-2`,
+              taskName: `Practical Implementation & Coding Drill`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 45,
+              difficulty: "Hard",
+              priority: "High",
+              learningObjective: "Implement core algorithms or solve complex applied scenario exercises.",
+            },
+            {
+              id: `task-${Date.now()}-3`,
+              taskName: `Active Recall Drill & Summary: ${sub2}`,
+              subject: sub2,
+              topic: weak2,
+              durationMinutes: 30,
+              difficulty: "Medium",
+              priority: "Medium",
+              learningObjective: `Synthesize chapter takeaways into concise bullet points and review flashcards.`,
+            },
+          ],
+        },
+        {
+          title: "Adaptive Weakness Mastery & Speed Sprint",
+          summary: `Calibrated study schedule prioritizing rapid mastery of ${weak1} and ${weak2}.`,
+          focusTheme: "Targeted Weak Topic Acceleration",
+          tasks: [
+            {
+              id: `task-${Date.now()}-1`,
+              taskName: `Critical Thinking & Edge Case Drill: ${weak1}`,
+              subject: sub1,
+              topic: weak1,
+              durationMinutes: 45,
+              difficulty: "Hard",
+              priority: "High",
+              learningObjective: `Investigate edge cases, boundary conditions, and optimal complexity in ${weak1}.`,
+            },
+            {
+              id: `task-${Date.now()}-2`,
+              taskName: `Formula Mastery & Rapid Quiz: ${sub2}`,
+              subject: sub2,
+              topic: weak2,
+              durationMinutes: 35,
+              difficulty: "Medium",
+              priority: "High",
+              learningObjective: `Test fast equation recall and solve 5 short computational problems.`,
+            },
+            {
+              id: `task-${Date.now()}-3`,
+              taskName: `Daily Wrap-Up & Spaced Repetition Log`,
+              subject: sub1,
+              topic: "Spaced Repetition",
+              durationMinutes: 20,
+              difficulty: "Easy",
+              priority: "Low",
+              learningObjective: "Log notes in revision journal and schedule spaced recall for tomorrow.",
+            },
+          ],
+        },
+      ];
+
+      const selectedPlan = themes[randIdx % themes.length];
+      const allTips = [
+        "Use the Pomodoro technique: 25 minutes of intense focus followed by a 5-minute break.",
+        "Review mistakes immediately after solving practice questions to build strong recall.",
+        "Explain key concepts out loud as if teaching someone else (Feynman Technique).",
+        "Interleave practice between two subjects to boost long-term retention.",
+        "Review your summary formula sheet before sleep to maximize memory consolidation.",
+        "Always attempt problems without checking answers first to test real retrieval strength.",
+      ];
+      const rotatedTips = [allTips[randIdx % allTips.length], allTips[(randIdx + 2) % allTips.length]];
+
       content = JSON.stringify({
-        title: "Personalized Daily Study & Revision Plan",
-        summary: "Balanced schedule emphasizing active recall, weak concept reinforcement, and practice questions.",
+        title: selectedPlan.title,
+        summary: selectedPlan.summary,
         estimatedTotalHours: 3,
         dailyPlans: [
           {
             dayNumber: 1,
             dateLabel: "Today",
-            focusTheme: "Core Concepts & Weak Area Practice",
-            tasks: [
-              {
-                id: "task-1",
-                taskName: "Revise Fundamental Concepts & Notes",
-                subject: "Active Subject",
-                topic: "Key Principles",
-                durationMinutes: 45,
-                difficulty: "Medium",
-                priority: "High",
-                learningObjective: "Review high-yield formulas and conceptual summaries.",
-              },
-              {
-                id: "task-2",
-                taskName: "Solve Targeted Practice Problems",
-                subject: "Active Subject",
-                topic: "Problem Solving",
-                durationMinutes: 45,
-                difficulty: "Hard",
-                priority: "High",
-                learningObjective: "Solve 10 practice problems to solidify analytical reasoning.",
-              },
-              {
-                id: "task-3",
-                taskName: "Self-Check Diagnostic Quiz",
-                subject: "Active Subject",
-                topic: "Assessment",
-                durationMinutes: 30,
-                difficulty: "Medium",
-                priority: "Medium",
-                learningObjective: "Take a short 5-question diagnostic check.",
-              },
-            ],
+            focusTheme: selectedPlan.focusTheme,
+            tasks: selectedPlan.tasks,
           },
         ],
-        mentorTips: [
-          "Use the Pomodoro technique: 25 minutes of intense focus followed by a 5-minute break.",
-          "Review mistakes immediately after solving practice questions.",
-        ],
+        mentorTips: rotatedTips,
       });
     } else if (combined.includes("practice-questions") || combined.includes("questions")) {
       content = JSON.stringify({
