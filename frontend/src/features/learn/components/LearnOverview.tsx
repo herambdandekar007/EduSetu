@@ -2,6 +2,7 @@
 // Complete Learn Module with Left-Sidebar Vertical Switcher for all Learn functions.
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -55,6 +56,10 @@ import type {
   Assignment,
   AssignedSubjectContext,
   QuizAnalysisData,
+  QuizAttempt,
+  NextBestActionItem,
+  PersonalizedLearningRecommendation,
+  Difficulty,
 } from "../types/learn.types";
 
 export type LearnFunctionKey =
@@ -155,12 +160,48 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
 
   const data = providedData ?? selfData;
 
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<LearnFunctionKey>("dashboard");
+  const [extraAttempts, setExtraAttempts] = useState<QuizAttempt[]>([]);
+
+  const effectiveQuizAttempts = useMemo(() => {
+    const base = data?.quizAttempts || [];
+    return [...extraAttempts, ...base];
+  }, [data?.quizAttempts, extraAttempts]);
 
   // Drill-down states
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+
+  // Deep linking via URL query parameters
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as LearnFunctionKey | null;
+    const validTabs: LearnFunctionKey[] = [
+      "dashboard",
+      "subjects",
+      "materials",
+      "quizzes",
+      "quiz-analysis",
+      "assignments",
+      "adaptive",
+      "next-action",
+      "revision",
+      "difficulty",
+    ];
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    const topicParam = searchParams.get("topic");
+    if (topicParam) {
+      setActiveTab("subjects");
+    }
+    const subjectIdParam = searchParams.get("subjectId");
+    if (subjectIdParam && data?.subjects?.length) {
+      const match = data.subjects.find((s) => s.id === subjectIdParam);
+      if (match) setSelectedSubject(match);
+    }
+  }, [searchParams, data]);
 
   const context = useMemo(() => buildContext(data), [data]);
   const difficultySettings = useMemo(
@@ -170,8 +211,7 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
   const revisionQueue = useMemo(() => (data ? buildRevisionQueue(data) : []), [data]);
 
   const analysisForQuiz = (quiz: Quiz): QuizAnalysisData | null => {
-    if (!data) return null;
-    const attempt = (data.quizAttempts || []).find((a) => a.quizId === quiz.id);
+    const attempt = effectiveQuizAttempts.find((a) => a.quizId === quiz.id);
     if (!attempt) return null;
     return {
       quizId: quiz.id,
@@ -207,14 +247,104 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
   const handleUploadSubmission = async () => {
     if (!selectedAssignment) return;
     try {
-      await submitAssignment(selectedAssignment.id, "Completed assignment submitted online.");
+      const evaluation = await submitAssignment(
+        selectedAssignment.id,
+        "Completed assignment submitted online with thorough solutions.",
+        undefined,
+        {
+          assignmentTitle: selectedAssignment.topic || "Course Assignment",
+          subject: selectedAssignment.subject || "Core Curriculum",
+          instructions: selectedAssignment.instructions,
+        }
+      );
       setSelectedAssignment({
         ...selectedAssignment,
-        status: "Submitted",
-        submissionStatus: "Submitted",
+        status: "Evaluated",
+        submissionStatus: "Evaluated",
+        score: evaluation.score,
+        grade: evaluation.grade,
+        aiFeedback: evaluation.feedback,
       });
     } catch (error) {
       console.error("Failed to submit assignment:", error);
+    }
+  };
+
+  const handleNextActionClick = (action: NextBestActionItem) => {
+    const qLower = (action.question + " " + action.actionLabel).toLowerCase();
+    if (qLower.includes("quiz")) {
+      setActiveTab("quizzes");
+      const matched = data?.quizzes.find(
+        (qz) => qz.id === action.target || action.actionLabel.toLowerCase().includes(qz.title.toLowerCase())
+      );
+      if (matched) setSelectedQuiz(matched);
+    } else if (
+      qLower.includes("assignment") ||
+      qLower.includes("submit") ||
+      qLower.includes("overdue") ||
+      qLower.includes("practice")
+    ) {
+      setActiveTab("assignments");
+      const matched = data?.assignments.find(
+        (asg) => asg.id === action.target || action.actionLabel.toLowerCase().includes(asg.topic.toLowerCase())
+      );
+      if (matched) setSelectedAssignment(matched);
+    } else if (qLower.includes("revise")) {
+      setActiveTab("revision");
+    } else {
+      setActiveTab("subjects");
+      const matched = data?.subjects.find(
+        (s) => s.id === action.target || s.name.toLowerCase().includes(action.subjectName.toLowerCase())
+      );
+      if (matched) setSelectedSubject(matched);
+    }
+  };
+
+  const handleRecommendationSelect = (kind: keyof PersonalizedLearningRecommendation, value: string) => {
+    if (kind === "recommendedQuiz") {
+      setActiveTab("quizzes");
+      const matched = data?.quizzes.find((q) => q.title.toLowerCase() === value.toLowerCase());
+      if (matched) setSelectedQuiz(matched);
+    } else if (kind === "recommendedMaterial" || kind === "recommendedVideo") {
+      setActiveTab("materials");
+    } else if (kind === "recommendedRevision") {
+      setActiveTab("revision");
+    } else if (kind === "recommendedPractice") {
+      setActiveTab("assignments");
+    } else {
+      setActiveTab("subjects");
+    }
+  };
+
+  const handleRevisionTopicQuiz = (topic: string) => {
+    setActiveTab("quizzes");
+    const matched = data?.quizzes.find(
+      (q) =>
+        q.title.toLowerCase().includes(topic.toLowerCase()) ||
+        q.chapter.toLowerCase().includes(topic.toLowerCase())
+    );
+    if (matched) setSelectedQuiz(matched);
+  };
+
+  const handleRecalibrateAssessment = async () => {
+    try {
+      const url =
+        import.meta.env.VITE_LEARN_AI_URL ||
+        (import.meta.env.VITE_AI_ASSISTANT_URL?.replace(/\/ai-assistant\/?$/, "") ?? "http://localhost:3001") +
+          "/learn-ai";
+      await fetch(`${url}/adaptive-path`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          educationLevel: "College",
+          subjects: data?.subjects || [],
+          weakTopics: data?.progress?.weakTopics || [],
+          strongTopics: data?.progress?.strongTopics || [],
+          overallProgress: data?.progress?.overallProgress || 70,
+        }),
+      });
+    } catch (e) {
+      console.warn("AI Recalibration note:", e);
     }
   };
 
@@ -352,6 +482,7 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
                       quiz={selectedQuiz}
                       userId={user?.uid || "guest"}
                       onComplete={(savedAttempt) => {
+                        setExtraAttempts((prev) => [savedAttempt, ...prev]);
                         if (selfData) {
                           setSelfData({
                             ...selfData,
@@ -372,8 +503,8 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {/* 5. Quiz Analysis */}
         {activeTab === "quiz-analysis" && (
           <div className="space-y-6">
-            {data.quizAttempts.length > 0 ? (
-              data.quizAttempts.map((attempt) => {
+            {effectiveQuizAttempts.length > 0 ? (
+              effectiveQuizAttempts.map((attempt) => {
                 const analysis: QuizAnalysisData = {
                   quizId: attempt.quizId,
                   quizTitle: attempt.quizTitle || "Quiz Assessment",
@@ -426,11 +557,20 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "adaptive" && (
           <div className="space-y-6">
             {assessment ? (
-              <AdaptiveLearning assessment={assessment} />
+              <AdaptiveLearning
+                assessment={assessment}
+                onSelectConcept={() => setActiveTab("revision")}
+                onRecalibrate={handleRecalibrateAssessment}
+              />
             ) : (
               <EmptyNote>No adaptive learning data available yet.</EmptyNote>
             )}
-            {recommendation && <PersonalizedLearning recommendation={recommendation} />}
+            {recommendation && (
+              <PersonalizedLearning
+                recommendation={recommendation}
+                onSelect={handleRecommendationSelect}
+              />
+            )}
           </div>
         )}
 
@@ -438,11 +578,16 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "next-action" && (
           <div className="space-y-6">
             {nextActions.length > 0 ? (
-              <NextBestAction actions={nextActions} />
+              <NextBestAction actions={nextActions} onAct={handleNextActionClick} />
             ) : (
               <EmptyNote>You are caught up on all urgent learning actions!</EmptyNote>
             )}
-            {recommendation && <PersonalizedLearning recommendation={recommendation} />}
+            {recommendation && (
+              <PersonalizedLearning
+                recommendation={recommendation}
+                onSelect={handleRecommendationSelect}
+              />
+            )}
           </div>
         )}
 
@@ -450,7 +595,11 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "revision" && (
           <div className="space-y-4">
             {revisionQueue.length > 0 ? (
-              <PersonalizedRevision items={revisionQueue} />
+              <PersonalizedRevision
+                items={revisionQueue}
+                onRevise={(item) => console.log("Revising topic:", item.topic)}
+                onLaunchTopicQuiz={handleRevisionTopicQuiz}
+              />
             ) : (
               <EmptyNote>No revision tasks due right now. Keep up the great work!</EmptyNote>
             )}
@@ -461,7 +610,11 @@ export default function LearnOverview({ data: providedData }: { data?: LearnData
         {activeTab === "difficulty" && (
           <div className="space-y-4">
             {difficultySettings.length > 0 ? (
-              <AdaptiveDifficulty settings={difficultySettings} />
+              <AdaptiveDifficulty
+                settings={difficultySettings}
+                onChangeLevel={(subject, level) => console.log("Subject difficulty set:", subject, level)}
+                onToggleAutoAdjust={(subject, auto) => console.log("Subject auto-adjust set:", subject, auto)}
+              />
             ) : (
               <EmptyNote>No difficulty adjustments configured yet.</EmptyNote>
             )}
@@ -556,28 +709,31 @@ function InteractiveQuizRunner({
     const answersRecord = questions.map((q, i) => {
       const isCorrect = selectedAnswers[i] === q.answerIndex;
       if (isCorrect) correctCount += 1;
-      return {
+      const rec: any = {
         question: q.question,
         selectedOption: q.options[selectedAnswers[i]] || "",
         correctOption: q.options[q.answerIndex] || "",
         isCorrect,
-        concept: quiz.subjectName,
-        mistake: !isCorrect ? `Selected "${q.options[selectedAnswers[i]]}" instead of "${q.options[q.answerIndex]}"` : undefined,
+        concept: quiz.subjectName || "General",
       };
+      if (!isCorrect) {
+        rec.mistake = `Selected "${q.options[selectedAnswers[i]]}" instead of "${q.options[q.answerIndex]}"`;
+      }
+      return rec;
     });
 
     const total = questions.length;
     const accuracy = Math.round((correctCount / total) * 100);
     const score = Math.round((correctCount / total) * 100);
     const strongConcepts = accuracy >= 60 ? [quiz.subjectName, "Core Fundamentals"] : ["Basic Principles"];
-    const weakConcepts = accuracy < 100 ? [quiz.title, "Advanced Nuances"] : [];
+    const weakConcepts = accuracy < 100 ? [quiz.title, "Advanced Concepts"] : [];
     const recommendedPractice = [
       `Review chapter notes for ${quiz.title}`,
       `Practice 5 worked examples on ${quiz.subjectName}`,
     ];
 
     const attemptPayload = {
-      userId,
+      userId: userId || "guest",
       quizId: quiz.id,
       quizTitle: quiz.title,
       score,
@@ -592,34 +748,35 @@ function InteractiveQuizRunner({
       completedAt: new Date().toISOString(),
     };
 
+    let attemptId = `att_${Date.now()}`;
     try {
-      const attemptId = await submitAssignment
-        ? await saveQuizAttempt(userId, attemptPayload as any)
-        : `att_${Date.now()}`;
-
-      const analysisData: QuizAnalysisData = {
-        quizId: quiz.id,
-        quizTitle: quiz.title,
-        score,
-        accuracy,
-        correctAnswers: correctCount,
-        wrongAnswers: total - correctCount,
-        strongConcepts,
-        weakConcepts,
-        mistakeAnalysis: answersRecord
-          .filter((a) => !a.isCorrect && a.mistake)
-          .map((a) => ({ concept: a.concept, mistake: a.mistake! })),
-        recommendedPractice,
-      };
-
-      setSavedAnalysis(analysisData);
-      setIsSubmitted(true);
-      onComplete({ id: attemptId, ...attemptPayload });
+      if (userId && userId !== "guest") {
+        attemptId = await saveQuizAttempt(userId, attemptPayload as any);
+      }
     } catch (err) {
-      console.error("Save attempt failed:", err);
+      console.warn("Firestore saveQuizAttempt note:", err);
     } finally {
       setIsSaving(false);
     }
+
+    const analysisData: QuizAnalysisData = {
+      quizId: quiz.id,
+      quizTitle: quiz.title,
+      score,
+      accuracy,
+      correctAnswers: correctCount,
+      wrongAnswers: total - correctCount,
+      strongConcepts,
+      weakConcepts,
+      mistakeAnalysis: answersRecord
+        .filter((a: any) => !a.isCorrect && a.mistake)
+        .map((a: any) => ({ concept: a.concept, mistake: a.mistake })),
+      recommendedPractice,
+    };
+
+    setSavedAnalysis(analysisData);
+    setIsSubmitted(true);
+    onComplete({ id: attemptId, ...attemptPayload });
   };
 
   if (loading) {

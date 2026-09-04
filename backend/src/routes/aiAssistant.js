@@ -216,7 +216,7 @@ function generateAssistantFallback(type, userProfile = {}) {
         {
           type: "course",
           title: "Web Accessibility (WCAG 2.2) & Modern UI Engineering",
-          subtitle: "DivyangConnect Academy • 12 Modules",
+          subtitle: "EduSetu Academy • 12 Modules",
           match: 88,
           reason: "Fills key accessibility skills gap to enhance tech employability.",
           tags: ["Accessibility", "Web"],
@@ -294,7 +294,7 @@ function generateAssistantFallback(type, userProfile = {}) {
     };
   }
 
-  return "Hello! I am your DivyangConnect AI Assistant. I can help you find suitable jobs, verify government scheme eligibility, suggest courses, and provide career mentorship. How can I assist you right now?";
+  return "Hello! I am your EduSetu AI Assistant. I can help you find suitable jobs, verify government scheme eligibility, suggest courses, and provide career mentorship. How can I assist you right now?";
 }
 
 export default router;

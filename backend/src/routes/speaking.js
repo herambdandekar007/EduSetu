@@ -35,9 +35,7 @@ router.post("/analyze", async (req, res) => {
     return res.status(400).json({ error: "Empty speech transcript provided" });
   }
 
-  const words = transcript.trim().split(/\s+/).filter(Boolean);
-
-  const systemPrompt = `You are a supportive, high-precision AI Speech, Pronunciation & Communication Coach for DivyangConnect.
+  const systemPrompt = `You are a supportive, high-precision AI Speech, Pronunciation & Communication Coach for EduSetu.
 Analyze the student's spoken speech in language: "${language || "English"}".
 Return ONLY valid JSON (no markdown wrapping, no conversational prefix):
 {
@@ -206,7 +204,7 @@ Return ONLY valid JSON:
 router.post("/mentor-chat", async (req, res) => {
   const { message = "", history = [] } = req.body || {};
 
-  const systemPrompt = `You are the EduSpeak AI Speaking Mentor for DivyangConnect.
+  const systemPrompt = `You are the EduSpeak AI Speaking Mentor for EduSetu.
 Give warm, highly practical communication and pronunciation coaching.
 Explain rules simply with clear examples and practice drill prompts.
 Return ONLY valid JSON:

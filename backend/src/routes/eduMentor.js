@@ -56,7 +56,7 @@ function buildMentorSystemPrompt(studentContext = {}, responseMode = "detailed")
 
   const selectedModePrompt = modeInstructions[responseMode] || modeInstructions.detailed;
 
-  return `You are 🤖 EduMentor, the student's personal, highly intelligent AI Education Mentor in the DivyangConnect SMART EDUCATION AI platform.
+  return `You are 🤖 EduMentor, the student's personal, highly intelligent AI Education Mentor in the EduSetu SMART EDUCATION AI platform.
 
 STUDENT PROFILE & CONTEXT:
 - Student Name: ${name} ${eduId ? `(EduID: ${eduId})` : ""}

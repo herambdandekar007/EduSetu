@@ -219,11 +219,12 @@ export default function LearnPage() {
         >
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
               size="sm"
               onClick={handleToggleVoiceCommands}
-              className={`gap-1.5 rounded-xl border-white/20 text-white hover:bg-white/10 ${
-                isVoiceListening ? "bg-rose-500 text-white border-rose-600 animate-pulse" : ""
+              className={`gap-1.5 rounded-xl font-semibold shadow-sm transition-all text-xs h-9 px-3.5 ${
+                isVoiceListening
+                  ? "bg-rose-500 text-white hover:bg-rose-600 border border-rose-600 animate-pulse [&_svg]:text-white"
+                  : "bg-white hover:bg-slate-100 text-indigo-950 border border-white/40 [&_svg]:text-indigo-600"
               }`}
               title="Voice Commands (EduAccess)"
             >
@@ -234,13 +235,12 @@ export default function LearnPage() {
             </Button>
 
             <Button
-              variant="outline"
               size="sm"
               onClick={() => {
                 const textToRead = `Smart Education AI Learn section for ${profile?.fullName || "Student"}. Overall progress is ${data.progress?.overallProgress || 72} percent with ${data.subjects?.length || 0} enrolled subjects.`;
                 readAloud(textToRead);
               }}
-              className="gap-1.5 rounded-xl border-white/20 text-white hover:bg-white/10"
+              className="gap-1.5 rounded-xl bg-white hover:bg-slate-100 text-indigo-950 font-semibold shadow-sm border border-white/40 transition-all text-xs h-9 px-3.5 [&_svg]:text-indigo-600"
               title="Read Aloud Summary"
             >
               <Volume2 className="h-4 w-4" />
@@ -248,10 +248,9 @@ export default function LearnPage() {
             </Button>
 
             <Button
-              variant="outline"
               size="sm"
               onClick={loadLearningData}
-              className="gap-1.5 rounded-xl border-white/20 text-white hover:bg-white/10"
+              className="gap-1.5 rounded-xl bg-white hover:bg-slate-100 text-indigo-950 font-semibold shadow-sm border border-white/40 transition-all text-xs h-9 px-3.5 [&_svg]:text-indigo-600"
               title="Refresh Data"
             >
               <RefreshCw className="h-4 w-4" />
