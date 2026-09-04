@@ -59,7 +59,10 @@ export async function generateAIStudyPlan(params: {
     const res = await fetch(`${BASE_URL}/api/edumentor/generate-plan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        regenerationNonce: Date.now(),
+      }),
     });
 
     if (!res.ok) {
@@ -69,9 +72,10 @@ export async function generateAIStudyPlan(params: {
     const data = await res.json();
     const todayStr = new Date().toISOString().split("T")[0];
     const planId = `${params.studentContext.userId}_${todayStr}`;
+    const timestampId = Date.now();
 
     const tasks = (data.dailyPlans?.[0]?.tasks || []).map((t: any, idx: number) => ({
-      id: t.id || `task-${idx + 1}`,
+      id: t.id ? `${t.id}-${timestampId}` : `task-${timestampId}-${idx + 1}`,
       taskName: t.taskName || `Study Session ${idx + 1}`,
       subject: t.subject || params.studentContext.subjects[0] || "General",
       topic: t.topic || "Core Topic",
@@ -241,69 +245,167 @@ function getLocalChatFallback(
 
 function getLocalPlanFallback(ctx: StudentLearningContext, hours: number): DailyStudyPlan {
   const todayStr = new Date().toISOString().split("T")[0];
-  const weak = ctx.weakTopics[0] || "Core Fundamentals";
-  const sub1 = ctx.subjects[0] || "Mathematics";
-  const sub2 = ctx.subjects[1] || "Computer Science";
+  const subs = ctx.subjects && ctx.subjects.length ? ctx.subjects : ["Data Structures & Algorithms", "Mathematics", "Operating Systems", "Database Management"];
+  const weaks = ctx.weakTopics && ctx.weakTopics.length ? ctx.weakTopics : ["Dynamic Programming", "Trees & Graphs", "Calculus & Optimization", "SQL Joins"];
+
+  const randIdx = Math.floor(Math.random() * 5);
+  const sub1 = subs[randIdx % subs.length] || "Mathematics";
+  const sub2 = subs[(randIdx + 1) % subs.length] || subs[0] || "Computer Science";
+  const weak1 = weaks[randIdx % weaks.length] || "Core Fundamentals";
+  const weak2 = weaks[(randIdx + 1) % weaks.length] || "Analytical Problem Solving";
+
+  const timestamp = Date.now();
+
+  const themes = [
+    {
+      title: "Today's Adaptive Study & Revision Plan",
+      summary: `Tailored for ${ctx.name || "Student"} with emphasis on active recall in ${weak1} and focused practice.`,
+      tasks: [
+        {
+          id: `task-${timestamp}-1`,
+          taskName: `Revise Core Concepts: ${weak1}`,
+          subject: sub1,
+          topic: weak1,
+          durationMinutes: 40,
+          difficulty: "Medium" as const,
+          priority: "High" as const,
+          isCompleted: false,
+          learningObjective: `Review core theoretical principles and standard formulas in ${weak1}.`,
+        },
+        {
+          id: `task-${timestamp}-2`,
+          taskName: `Targeted Problem Solving Drill`,
+          subject: sub1,
+          topic: weak1,
+          durationMinutes: 50,
+          difficulty: "Hard" as const,
+          priority: "High" as const,
+          isCompleted: false,
+          learningObjective: "Solve 10 practice problems and review any incorrect approaches.",
+        },
+        {
+          id: `task-${timestamp}-3`,
+          taskName: `Advance in ${sub2}`,
+          subject: sub2,
+          topic: weak2,
+          durationMinutes: 40,
+          difficulty: "Medium" as const,
+          priority: "Medium" as const,
+          isCompleted: false,
+          learningObjective: `Complete chapter summary and worked examples for ${weak2}.`,
+        },
+        {
+          id: `task-${timestamp}-4`,
+          taskName: `Diagnostic Self-Quiz: ${sub1}`,
+          subject: sub1,
+          topic: "Topic Mastery Quiz",
+          durationMinutes: 20,
+          difficulty: "Easy" as const,
+          priority: "Low" as const,
+          isCompleted: false,
+          learningObjective: "Assess retention with a quick 5-question multiple-choice check.",
+        },
+      ],
+    },
+    {
+      title: "Intensive Problem-Solving & Speed Sprint",
+      summary: `High-yield analytical problem solving session for ${ctx.name || "Student"}, prioritizing ${sub1} and ${sub2}.`,
+      tasks: [
+        {
+          id: `task-${timestamp}-1`,
+          taskName: `Worked Examples Breakdown: ${sub1}`,
+          subject: sub1,
+          topic: weak1,
+          durationMinutes: 45,
+          difficulty: "Medium" as const,
+          priority: "High" as const,
+          isCompleted: false,
+          learningObjective: `Deconstruct 5 complex exam questions step-by-step in ${weak1}.`,
+        },
+        {
+          id: `task-${timestamp}-2`,
+          taskName: `Timed Problem Practice Sprint`,
+          subject: sub1,
+          topic: weak1,
+          durationMinutes: 45,
+          difficulty: "Hard" as const,
+          priority: "High" as const,
+          isCompleted: false,
+          learningObjective: "Solve multi-step problems under timed exam conditions.",
+        },
+        {
+          id: `task-${timestamp}-3`,
+          taskName: `Concept Mapping & Quick Flashcards: ${sub2}`,
+          subject: sub2,
+          topic: weak2,
+          durationMinutes: 30,
+          difficulty: "Easy" as const,
+          priority: "Medium" as const,
+          isCompleted: false,
+          learningObjective: `Review active recall flashcards and consolidate 1-page formula sheet.`,
+        },
+      ],
+    },
+    {
+      title: "Exam Readiness & Mistake Elimination Sprint",
+      summary: `Targeted session reviewing error patterns in ${weak1} and solidifying syllabus milestones.`,
+      tasks: [
+        {
+          id: `task-${timestamp}-1`,
+          taskName: `Mistake Journal Review: ${weak1}`,
+          subject: sub1,
+          topic: weak1,
+          durationMinutes: 35,
+          difficulty: "Medium" as const,
+          priority: "High" as const,
+          isCompleted: false,
+          learningObjective: `Analyze past quiz mistakes and correct conceptual misconceptions in ${weak1}.`,
+        },
+        {
+          id: `task-${timestamp}-2`,
+          taskName: `Derivation & Theorem Mastery: ${sub2}`,
+          subject: sub2,
+          topic: weak2,
+          durationMinutes: 50,
+          difficulty: "Hard" as const,
+          priority: "High" as const,
+          isCompleted: false,
+          learningObjective: `Write out full derivations and proof steps without looking at notes.`,
+        },
+        {
+          id: `task-${timestamp}-3`,
+          taskName: `Self-Check Diagnostic Assessment`,
+          subject: sub1,
+          topic: "Diagnostic Check",
+          durationMinutes: 25,
+          difficulty: "Medium" as const,
+          priority: "Medium" as const,
+          isCompleted: false,
+          learningObjective: "Complete a 10-question mixed assessment with instant answer analysis.",
+        },
+      ],
+    },
+  ];
+
+  const plan = themes[randIdx % themes.length];
+  const allTips = [
+    "Review the concepts you found difficult yesterday before starting new material.",
+    "Track your mistakes in a dedicated error log notebook.",
+    "Use the Pomodoro technique: 25 minutes of focus followed by a 5-minute break.",
+    "Explain key concepts out loud as if teaching someone else (Feynman Technique).",
+  ];
 
   return {
     id: `${ctx.userId}_${todayStr}`,
     userId: ctx.userId,
     eduId: ctx.eduId,
     date: todayStr,
-    title: "Today's Adaptive Study Plan",
-    summary: `Tailored for ${ctx.name} with focus on ${weak} and active practice.`,
+    title: plan.title,
+    summary: plan.summary,
     estimatedTotalHours: hours,
-    tasks: [
-      {
-        id: "task-1",
-        taskName: `Revise ${weak}`,
-        subject: sub1,
-        topic: weak,
-        durationMinutes: 40,
-        difficulty: "Medium",
-        priority: "High",
-        isCompleted: false,
-        learningObjective: `Review core concepts and formulas in ${weak}`,
-      },
-      {
-        id: "task-2",
-        taskName: "Targeted Problem Practice",
-        subject: sub1,
-        topic: weak,
-        durationMinutes: 45,
-        difficulty: "Hard",
-        priority: "High",
-        isCompleted: false,
-        learningObjective: "Solve 10 practice questions and review mistakes",
-      },
-      {
-        id: "task-3",
-        taskName: `Advance in ${sub2}`,
-        subject: sub2,
-        topic: "Next Curriculum Topic",
-        durationMinutes: 45,
-        difficulty: "Medium",
-        priority: "Medium",
-        isCompleted: false,
-        learningObjective: "Complete lecture notes and summary",
-      },
-      {
-        id: "task-4",
-        taskName: "Diagnostic Self-Quiz",
-        subject: sub1,
-        topic: "Topic Mastery Quiz",
-        durationMinutes: 20,
-        difficulty: "Easy",
-        priority: "Low",
-        isCompleted: false,
-        learningObjective: "Assess retention with 5 quick MCQs",
-      },
-    ],
+    tasks: plan.tasks,
     completionPercentage: 0,
-    mentorTips: [
-      "Review the concepts you found difficult yesterday before starting new material.",
-      "Track your mistakes in a dedicated error log notebook.",
-    ],
+    mentorTips: [allTips[randIdx % allTips.length], allTips[(randIdx + 1) % allTips.length]],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

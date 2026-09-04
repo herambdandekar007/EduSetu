@@ -301,9 +301,9 @@ export async function evaluateSpeechInput(
   const wpm = durationSeconds > 0 ? Math.round((wordCount / durationSeconds) * 60) : 110;
 
   let pronunciation = 80;
-  let grammar = 75;
-  let fluency = Math.min(95, Math.max(60, wpm > 80 && wpm < 160 ? 85 : 70));
-  let vocabulary = 78;
+  const grammar = 75;
+  const fluency = Math.min(95, Math.max(60, wpm > 80 && wpm < 160 ? 85 : 70));
+  const vocabulary = 78;
   let confidence = 82;
 
   if (targetPhrase) {

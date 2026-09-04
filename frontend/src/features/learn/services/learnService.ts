@@ -916,15 +916,15 @@ export const getLearnData = async (userId: string): Promise<LearnData> => {
       }
     };
 
-    let [
-      subjects,
-      topics,
-      materials,
-      quizzes,
+    const [
+      initialSubjects,
+      initialTopics,
+      initialMaterials,
+      initialQuizzes,
       quizAttempts,
-      assignments,
-      progress,
-      recommendations,
+      initialAssignments,
+      initialProgress,
+      initialRecommendations,
     ] = await Promise.all([
       safe(getStudentSubjects(userId), [], "Subjects"),
       safe(getStudentTopics(userId), [], "Topics"),
@@ -935,6 +935,14 @@ export const getLearnData = async (userId: string): Promise<LearnData> => {
       safe(getLearningProgress(userId), null, "Learning Progress"),
       safe(getRecommendations(userId), [], "Recommendations"),
     ]);
+
+    let subjects = initialSubjects;
+    let topics = initialTopics;
+    let materials = initialMaterials;
+    let quizzes = initialQuizzes;
+    let assignments = initialAssignments;
+    let progress = initialProgress;
+    let recommendations = initialRecommendations;
 
     // If Firestore does not have subjects yet, automatically initialize personalized curriculum!
     if (subjects.length === 0) {
